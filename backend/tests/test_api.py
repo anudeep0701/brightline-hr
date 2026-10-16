@@ -58,11 +58,13 @@ def test_idempotent_and_isolated_ingestion(client, db):
     assert db.scalar(select(func.count()).select_from(RequestLog)) == 2
 
 
-def test_atomic_validation(client, db):
+def test_partial_validation(client, db):
     p = payload()
     p["logs"] += payload("event-2", "foreign")["logs"]
-    assert client.post("/api/v1/logs", headers=A, json=p).status_code == 422
-    assert db.scalar(select(func.count()).select_from(RequestLog)) == 0
+    response = client.post("/api/v1/logs", headers=A, json=p)
+    assert response.status_code == 200
+    assert response.json()["accepted"] == 1 and response.json()["rejected"] == 1
+    assert db.scalar(select(func.count()).select_from(RequestLog)) == 1
 
 
 @pytest.mark.parametrize(
@@ -78,7 +80,9 @@ def test_atomic_validation(client, db):
 def test_rejected_inputs(client, field, value):
     p = payload()
     p["logs"][0][field] = value
-    assert client.post("/api/v1/logs", headers=A, json=p).status_code == 422
+    response = client.post("/api/v1/logs", headers=A, json=p)
+    assert response.status_code == 200
+    assert response.json()["accepted"] == 0 and response.json()["rejected"] == 1
 
 
 def test_unknown_detail_is_tenant_scoped(client):
@@ -117,6 +121,8 @@ def test_incident_recovery_and_duplicate_refresh(db):
     add_window(db, at, True)
     assert refresh(db, "a", at)["created"] == 1
     assert refresh(db, "a", at)["created"] == 0
+    assert db.scalar(select(Incident)) is None
+    refresh(db, "a", at + timedelta(minutes=5))
     incident = db.scalar(select(Incident))
     assert incident and incident.resolved_at is None
     # Old failures fall out of the window; skipped evaluations do not count as consecutive recovery.
@@ -128,6 +134,8 @@ def test_incident_recovery_and_duplicate_refresh(db):
     assert incident.resolved_at is not None
     add_window(db, at + timedelta(minutes=30), True)
     refresh(db, "a", at + timedelta(minutes=30))
+    add_window(db, at + timedelta(minutes=35), True)
+    refresh(db, "a", at + timedelta(minutes=35))
     assert db.scalar(select(func.count()).select_from(Incident)) == 2
 
 
@@ -135,6 +143,7 @@ def test_unknown_does_not_resolve_incident(db):
     at = bucket_for(datetime.now(timezone.utc)) - timedelta(hours=2)
     add_window(db, at, True)
     refresh(db, "a", at)
+    refresh(db, "a", at + timedelta(minutes=5))
     refresh(db, "a", at + timedelta(hours=1))
     incident = db.scalar(select(Incident))
     assert incident.resolved_at is None and incident.recovery_streak == 0
@@ -151,7 +160,7 @@ def test_ai_disabled_and_failure_never_mutates_health(db, monkeypatch):
     )
     result = explain(db, snapshot, Settings(openai_api_key="fake-test-key"))
     assert result.source == "deterministic"
-    assert snapshot.evidence == before and snapshot.status == "unknown"
+    assert snapshot.evidence == before and snapshot.status == "UNKNOWN"
     assert explain(db, snapshot, Settings()).id == result.id
     assert db.scalar(select(func.count()).select_from(Enrichment)) == 1
 
@@ -177,7 +186,7 @@ def test_ai_absent_does_not_construct_client(db, monkeypatch):
 def test_ai_structured_success_and_refusal(db, monkeypatch, valid):
     from types import SimpleNamespace
 
-    from app.schemas.contracts import ExplanationText
+    from app.schemas.enrichment import EnrichmentReport
 
     at = bucket_for(datetime.now(timezone.utc))
     refresh(db, "a", at)
@@ -189,19 +198,27 @@ def test_ai_structured_success_and_refusal(db, monkeypatch, valid):
         assert "tenant_id" not in kwargs["input"]
         assert snapshot.id in kwargs["input"]
         return SimpleNamespace(
-            output_parsed=ExplanationText(
-                explanation="No fresh telemetry; check the log exporter."
+            output_parsed=EnrichmentReport(
+                summary="No fresh telemetry; check the log exporter.",
+                likely_issue_category="insufficient_evidence",
+                suggested_checks=["Inspect log exporter freshness."],
+                confidence=0.1,
+                what_changed="No earlier snapshot is available for comparison.",
             )
             if valid
             else None
         )
 
+    from contextlib import nullcontext
+
     monkeypatch.setattr(
         "app.ai.enrichment.OpenAI",
-        lambda **kwargs: SimpleNamespace(responses=SimpleNamespace(parse=parse)),
+        lambda **kwargs: nullcontext(
+            SimpleNamespace(responses=SimpleNamespace(parse=parse))
+        ),
     )
     result = explain(db, snapshot, Settings(openai_api_key="fake-test-key"))
-    assert result.source == ("openai:gpt-4.1-mini" if valid else "deterministic")
+    assert result.source == ("openai:gpt-6-luna" if valid else "deterministic")
     assert snapshot.status == original
 
 
@@ -233,8 +250,8 @@ def test_late_arrival_does_not_rewrite_saved_evidence(db):
     first_evidence = first.evidence.copy()
     add_window(db, at, True)
     assert refresh(db, "a", at)["created"] == 0
-    assert first.status == "unknown" and first.evidence == first_evidence
+    assert first.status == "UNKNOWN" and first.evidence == first_evidence
     refresh(db, "a", at + timedelta(minutes=5))
     latest = db.scalar(select(Snapshot).order_by(Snapshot.bucket.desc()))
-    assert latest.status == "unhealthy"
+    assert latest.status == "DEGRADED"
     assert latest.evidence["metrics"]["request_count"] == 30

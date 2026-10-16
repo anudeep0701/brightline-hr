@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -20,9 +21,14 @@ def get_engine():
             connection.execute("PRAGMA foreign_keys=ON")
 
         return engine
-    return create_engine(
-        url, poolclass=NullPool, connect_args={"prepare_threshold": None}
-    )
+    try:
+        return create_engine(
+            url, poolclass=NullPool, connect_args={"prepare_threshold": None}
+        )
+    except (ArgumentError, ValueError):
+        raise ValueError(
+            "DATABASE_URL is invalid; configure a valid PostgreSQL connection URI without printing credentials"
+        ) from None
 
 
 def get_db():

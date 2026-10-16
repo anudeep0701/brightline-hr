@@ -9,7 +9,7 @@ jobs:
         env:
           POSTGRES_DB: brightline_test
           POSTGRES_USER: brightline
-          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_PASSWORD: ${{ github.run_id }}
         ports: ["5432:5432"]
         options: --health-cmd="pg_isready -U brightline" --health-interval=5s --health-retries=10
     steps:
@@ -19,15 +19,26 @@ jobs:
       - run: pip install -r backend/requirements.lock.txt
       - run: pytest
         working-directory: backend
-      - run: python scripts/check_postgres.py
+      - name: Local HTTP smoke test without secrets or AI
+        run: python scripts/smoke_test.py --port 8012
+      - name: PostgreSQL upgrade and concurrency checks
         env:
-          DATABASE_URL: postgresql://brightline:ci-only-password@localhost:5432/brightline_test
+          PGPASSWORD: ${{ github.run_id }}
           APP_ENV: test
+        run: |
+          python - <<'PYCODE'
+          import os, subprocess, sys
+          from sqlalchemy.engine import URL
+          os.environ["DATABASE_URL"] = URL.create("postgresql+psycopg", username="brightline", password=os.environ["PGPASSWORD"], host="localhost", port=5432, database="brightline_test").render_as_string(hide_password=False)
+          subprocess.run([sys.executable, "scripts/check_postgres.py"], env=os.environ, check=True)
+          PYCODE
   frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json}
-      - run: npm ci && npm run typecheck && npm run build
+      - name: Local launcher configuration and secret isolation
+        run: npm test
+      - run: npm ci && npm test && npm run lint && npm run typecheck && npm run build
         working-directory: frontend

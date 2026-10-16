@@ -1,0 +1,17 @@
+### Replace URL, ingestion key, integration ID and timestamps before sending.
+### Timestamps must be in the preceding seven days, never in the future.
+POST https://YOUR-BACKEND.vercel.app/api/ingest
+Authorization: Bearer <ingestion-api-key>
+Content-Type: application/json
+
+{
+  "events": [
+    {
+      "timestamp": "2026-10-15T12:00:01Z",
+      "integration_id": "workday-payroll",
+      "request_id": "workday:68f91c51-02cb-45ef-a393-0d46d4e84d81",
+      "http_status": 200,
+      "latency_ms": 342
+    }
+  ]
+}

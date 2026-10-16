@@ -1,4 +1,7 @@
 # Synthetic data
-Run `python scripts/generate_data.py` from the repository root to generate ignored JSONL metadata. Fixed seed 42 and an explicit UTC anchor make scenarios reproducible. `seed.py` loads this generator directly without requiring JSONL files.
 
-Scenarios: Gusto error outage; DocuSign latency degradation; Greenhouse, Okta, Slack healthy; Workday telemetry gap; Checkr sparse traffic; ADP historical outage and recovery. Each integration uses its own latency target. Synthetic owner labels are teams, not real people. Demo data does not continuously advance; reseed deliberately after it becomes stale.
+The canonical generator is `scripts/generate_synthetic_data.py`. It supports multiple tenants, seven providers, ten explicit operational scenarios, fixed seeds and a fixed default UTC start.
+
+See [synthetic/README.md](synthetic/README.md) for CLI arguments, scenario definitions, event schema, exact sample regeneration and demo instructions. The generated, committed sample lives in `synthetic/sample/`; ad hoc default output under `synthetic/generated/` is ignored by Git.
+
+The demo seeder imports the same generator and anchors it to a recent interval. Existing local demo databases are preserved; use a separate ignored database file for a fresh run. No external API is called.

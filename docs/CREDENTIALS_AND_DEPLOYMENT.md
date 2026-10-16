@@ -1,46 +1,110 @@
-# Credentials and Git deployment
+# Supabase first, then one Vercel application
 
-This repository contains only `.env.example` with six **blank** placeholders. Do not put secret values in that tracked file. Treat it as a list of names. Set real values through your shell, an ignored file you create manually, or Vercel Environment Variables. No real `.env` file was created by the implementation. Pydantic reads process environment; local ignored files are loaded only if you explicitly pass Uvicorn `--env-file`.
+The deployment uses one Vercel project and domain. The root `vercel.json` defines independently built Next.js and FastAPI services. [Vercel Services](https://vercel.com/docs/services) is currently in beta; this is a supported configuration, with hosted preview validation required before pilot use.
 
-## 1. OpenAI API key (optional)
-1. Sign in to [OpenAI Platform](https://platform.openai.com/), select/create the project you want billed, and open [API keys](https://platform.openai.com/api-keys).
-2. Create a secret key for this backend project. Copy it once into a password manager. Configure project billing/usage limits as needed.
-3. Set `OPENAI_API_KEY` in the **backend** Vercel project's environment settings. For local testing, set it in your shell or an ignored file you create manually. Never expose it through a `NEXT_PUBLIC_` variable.
-4. Redeploy the backend. Open an integration and click Explain. The source label reports AI assistance or deterministic fallback. An absent/invalid key leaves monitoring functional.
+Only blank `.env.example` belongs in Git. Real credentials go in process environment or Vercel project variables. Standalone Python administration commands do not load environment files. The existing local `npm run dev` launcher still loads root configuration for the user and filters backend credentials out of its frontend child.
 
-The implementation uses the official Python SDK Responses API, with `gpt-4.1-mini`, no tools, structured output, `store=False` and an 8-second timeout. Model access depends on your project; test access before relying on enrichment. [Official OpenAI quickstart](https://developers.openai.com/api/docs/quickstart) explains key creation and server environment configuration. ChatGPT subscriptions and API billing are separate account products; verify your API project's billing settings.
+## 1. Prepare Supabase before deploying
 
-## 2. Supabase PostgreSQL
-1. Create a project in the [Supabase dashboard](https://supabase.com/dashboard) and store the database password securely.
-2. Click **Connect → Transaction pooler**. Copy the URI, replace its password placeholder with a URL-encoded password, and set it as backend `DATABASE_URL`. Add `sslmode=require` if not present. The application normalizes `postgresql://` to SQLAlchemy's psycopg dialect.
-3. The engine uses `NullPool` and disables psycopg automatic prepared statements for transaction-pooler compatibility. See [Supabase SQLAlchemy guidance](https://supabase.com/docs/guides/troubleshooting/using-sqlalchemy-with-supabase-FUqebT).
-4. From a trusted terminal, supply the same environment settings and run `python scripts/migrate.py`. This applies the versioned schema once, verifies digests and enables RLS. Prefer a direct/session connection for migration administration if your pooler's session features or network configuration require it.
-5. Provision a tenant and a workspace token using `python scripts/admin.py brightline 'Brightline HR' --integration gusto`. The CLI asks for the token with hidden input. Generate a unique random token using your password manager; choose at least 32 random characters. Repeat with a new token and `--integration` to add integrations, or `--role reader` for read-only access. The current CLI uses integration ID as its display name; edit integration metadata through trusted SQL administration if needed.
-6. Send sanitized request batches using the workspace operator bearer token. Open `/docs` for the schema. No Supabase service-role or publishable API key is needed: the backend connects directly to PostgreSQL. Keep database credentials server-side.
+Use a dedicated Supabase project/database for this pilot. Keep preview and customer data separate.
 
-## 3. Application and scheduler configuration
-| Variable | Where | Value |
-| --- | --- | --- |
-| DATABASE_URL | Backend | Supabase pooler URI with database password and TLS |
-| OPENAI_API_KEY | Backend | OpenAI project secret; optional |
-| CRON_SECRET | Backend | Independently generated random 32+ character secret |
-| APP_ENV | Backend | `production` when hosted, `demo` locally |
-| CORS_ALLOWED_ORIGINS | Backend | Exact frontend URL(s), comma-separated; no wildcard |
-| NEXT_PUBLIC_API_BASE_URL | Frontend | Backend HTTPS URL, without trailing slash |
+1. In Supabase, open **Connect**. Obtain the PostgreSQL URI and URL-encode its password. Use the transaction pooler for the serverless runtime, with `sslmode=require` (or verified TLS with the appropriate CA configuration). The existing SQLAlchemy engine uses `NullPool` and `prepare_threshold=None`. See [Supabase connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres).
+2. Privately export `DATABASE_URL` into your trusted administration terminal. Do not paste it into chat, source files or command output. For migrations, use a direct/session connection if required by network or administrative permissions. Use the transaction URI as Vercel's runtime value afterward.
+3. From the repository root, apply the pending migrations:
 
-`CRON_SECRET` is generated by you, not issued by a vendor. It is different from each workspace token and the OpenAI key. Vercel adds it as `Authorization: Bearer …` on cron requests. No Vercel API token is needed for dashboard-based Git deployment. [Vercel's FastAPI guide](https://vercel.com/kb/guide/ship-a-fastapi-app-on-vercel) documents detection and cron authorization. The five-minute schedule requires a Vercel plan that supports that frequency; otherwise choose a suitable scheduler/plan and document the longer detection delay.
+   ```sh
+   .venv/bin/python scripts/migrate.py
+   ```
 
-## 4. Git-based Vercel deployment
-1. Review `git status --short` and verify no secrets are staged. The repository is initialized locally; add your own remote. Push the repository to your Git provider.
-2. Import it into Vercel as **two projects**, with Root Directory `backend` and `frontend` respectively. This is one monorepo with separate Python and Next.js build roots, not a Python service hosted inside Next.js.
-3. Backend: FastAPI automatic detection finds `index.py` exporting `app`; `requirements.txt` installs from the pinned lock file; `.python-version` selects Python 3.12. Set all backend variables. No database migrations run during request startup or Vercel builds.
-4. Frontend: Next.js detection uses `npm ci`/`npm run build`. Set `NEXT_PUBLIC_API_BASE_URL` to the backend URL. This variable is embedded at build time, so rebuild after changes.
-5. Update backend `CORS_ALLOWED_ORIGINS` with the exact frontend production origin and redeploy. Add deliberate preview origins only if needed; do not use a wildcard to fix preview access.
-6. Apply migrations and provision tenant/integrations before sending traffic. Do not seed synthetic data into a real customer database.
-7. Verify `/healthz`, tenant authentication, ingestion, `/api/v1/refresh`, the dashboard and optional explanation. Confirm cron execution in Vercel logs and check that unauthenticated cron requests return 401. Cron runs only on production deployments.
-8. Future pushes trigger Vercel deployments. Use preview environments with a separate Supabase database and credentials. Migration rollback is a deliberate database operation: a frontend/backend deployment rollback does not undo schema changes.
+   The runner applies numbered migrations transactionally and checks stored digests. It preserves existing demo data on compatible PostgreSQL schemas. A changed applied migration fails rather than silently rewriting history. Check backups and the target database before administering an existing customer database.
+4. Run the same command again to verify migration state. A successful run with no “Applied” lines means all existing migration digests match.
+5. Register the tenant/integration and issue a workspace token:
 
-## 5. Operating the pilot
-Log exporters POST `{ "logs": [...] }` to `/api/v1/logs` with their tenant's operator bearer token. Duplicate event IDs are ignored without altering the original record; correcting an event requires a new ID. Batches are limited to 1000 and accept timestamps from the past seven days, with no future tolerance. Synchronize exporter clocks. The latest completed evaluation is immutable; late events enter later windows. Real exporters and notification delivery are outside this MVP.
+   ```sh
+   .venv/bin/python scripts/admin.py brightline 'Brightline HR' \
+     --integration workday-payroll --generate-token
+   ```
 
-Watch ingestion freshness, scheduled invocation failures and database connections. Review Supabase backup settings and rehearse restore before onboarding. Rotate compromised workspace tokens by deleting the digest row and provisioning a replacement through the trusted CLI. Keep CRON_SECRET and OpenAI credentials independent. No secrets are logged by the application error handlers.
+   Save the entire once-displayed token privately. After the application is available, enter it under **Workspace access → Workspace bearer token → Connect** without `Bearer`. It stays in browser memory; refresh clears it. The database stores its SHA-256 digest. An existing tenant is preserved; each invocation issues another token. Repeat with a new integration ID to register additional systems, or `--role reader` for read-only access. CLI-created integration metadata can be refined through trusted administration.
+6. Issue the separate ingestion-only credential:
+
+   ```sh
+   .venv/bin/python scripts/ingestion_keys.py create brightline \
+     --name 'Customer exporter'
+   ```
+
+   Save its entire once-displayed value in the exporter secret store. Only a domain-separated SHA-256 digest is persisted. It cannot read the workspace or request AI assistance. See [external ingestion](EXTERNAL_INGESTION.md) for revocation and request examples.
+
+No Supabase service-role, publishable or anonymous API key is needed: FastAPI connects directly to PostgreSQL. No database migration or synthetic seed runs automatically during builds or requests.
+
+If `DATABASE_URL` is not exported, administration commands fail clearly. A secret present only in a prohibited/unread environment file is not available to a review session; the hosted database must then be configured manually before deployment.
+
+## 2. Configure the single Vercel project
+
+Push the repository to your Git provider and import it **once** into Vercel. Configure:
+
+- **Root Directory:** `.` (repository root), not `frontend` or `backend`.
+- **Framework preset:** allow Services configuration; do not force a single Next.js or FastAPI project preset. If the import screen requires a project-level choice, use Other with its command/output overrides cleared.
+- **Project-level Install / Build / Output overrides:** unset. Service settings in the root `vercel.json` own these.
+- **Node.js:** 22+; backend Python is selected by `backend/.python-version` (3.12).
+
+| Service | Root | Framework | Install | Build / entrypoint |
+| --- | --- | --- | --- | --- |
+| frontend | `frontend/` | Next.js | `npm ci` | `npm run build` |
+| backend | `backend/` | FastAPI | `pip install -r requirements.txt` | `index:app`; framework-managed Python build |
+
+There is no nested backend `vercel.json`, legacy `builds` array, external backend URL rewrite, custom ASGI wrapper or Next.js API proxy. The Python domain remains in `backend/app`.
+
+Set these project environment variables for each intended deployment environment:
+
+| Variable | Configuration |
+| --- | --- |
+| `DATABASE_URL` | Supabase PostgreSQL runtime pooler URI with TLS; required |
+| `APP_ENV` | `production`; required on Vercel, including previews |
+| `CRON_SECRET` | Independent random secret of at least 32 characters; required |
+| `OPENAI_API_KEY` | Optional server-side project key; monitoring works without it |
+| `OPENAI_MODEL` | Optional override; default `gpt-6-luna` |
+| `NEXT_PUBLIC_API_BASE_URL` | Leave unset for this deployment; production uses the current browser origin |
+| `CORS_ALLOWED_ORIGINS` | Leave unset; same-origin production grants no cross-origin browser access |
+| `PGPASSWORD` | Not required; only used by optional local Docker Compose |
+
+Services share project variables. This is not a per-service secret boundary: trusted Next.js server/build code can also see project secrets. The frontend references no backend credentials, and only `NEXT_PUBLIC_` values are bundled for the browser. Never rename a secret with that prefix. Use separate projects if separate service trust/administration becomes a requirement.
+
+For optional AI, use an existing authorized OpenAI project key or create one through [OpenAI Platform](https://platform.openai.com/api-keys), then set it as the server-only project variable. Verify model access separately. Briefs use structured fact/check selection, no tools, an eight-second timeout and deterministic fallback. See [AI operations](AI_OPERATIONS.md).
+
+## 3. Public routing and authentication
+
+The [service routing table](https://vercel.com/docs/services/routing) preserves original paths, query strings, bodies, methods and Authorization headers:
+
+| Public path | Owner |
+| --- | --- |
+| `/api`, `/api/*` | FastAPI, including compatibility routes, ingestion, uploads, AI and evaluation |
+| `/healthz`, `/readyz` | FastAPI probes |
+| `/docs`, `/docs/*`, `/redoc`, `/openapi.json` | FastAPI documentation/schema |
+| `/`, `/integrations/*`, `/data-sources`, `/_next/*`, other application paths | Next.js |
+
+A missing backend route returns the backend's 404; it does not fall through to Next.js. `/api` prefixes are not stripped, so backend route definitions and OpenAPI URLs remain unchanged.
+
+Workspace reader/operator authorization, tenant scoping, ingestion-only keys and cron authorization remain independent. CORS is not authentication. External exporters can POST to `https://<app-domain>/api/ingest` with their ingestion key. If Vercel Deployment Protection is enabled, configure approved exporter access as well as application authorization; do not make a protected preview the production ingestion target.
+
+Local `npm run dev` still starts ports 3000 and 8000 and configures exact localhost CORS. An explicit local API override remains supported. Do not carry a localhost API override into the Vercel production build.
+
+## 4. Scheduled evaluation
+
+The root config owns a single five-minute cron: `GET /api/cron/refresh`. Vercel routes it into FastAPI and supplies `Authorization: Bearer <CRON_SECRET>`. The existing handler verifies the secret and evaluates tenant policies; bucket idempotency, locking and incident hysteresis are unchanged. Public callers with no/incorrect secret receive 401.
+
+The committed frequency requires **Pro or Enterprise**. Hobby rejects sub-daily cron schedules; changing it to daily would violate this product's freshness expectations. Confirm [plan limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and actual invocations before pilot use. Cron executes in production, not previews. Keep monitoring for failed/overlapping or slow evaluations; current scheduling is bounded to 100 tenants.
+
+## 5. Release verification
+
+After an approved deployment, check:
+
+1. `/healthz`, `/readyz`, `/docs` and `/openapi.json` resolve on the same domain as the dashboard.
+2. `/api/workspace` returns 401 without a token; a valid workspace token loads only its tenant.
+3. A recent production-style `/api/ingest` batch accepts valid events; replay reports duplicates; a foreign tenant/integration is rejected.
+4. An operator can call `/api/evaluate`; repeated same-bucket evaluation does not advance incidents.
+5. The dashboard and detail pages load same-origin evidence, including file-import validation and confirmation.
+6. AI brief/investigation requests show deterministic fallback without an OpenAI key. Verify live provider access separately if AI is enabled.
+7. Unauthenticated cron calls return 401; scheduled production calls succeed and keep evidence fresh.
+
+Git pushes deploy both services together; previews and application rollbacks are atomic across the two builds. Database migrations remain manual and are not rolled back with application code. Services beta, shared project configuration and coupled release cadence are the trade-offs for one domain and one deployment. No hosted deployment has been verified by local tests alone.

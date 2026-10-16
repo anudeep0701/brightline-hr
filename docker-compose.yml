@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: brightline
       POSTGRES_USER: brightline
-      POSTGRES_PASSWORD: local-demo-only
+      POSTGRES_PASSWORD: ${PGPASSWORD:?Set PGPASSWORD in your shell for local PostgreSQL}
     ports: ["127.0.0.1:5432:5432"]
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     healthcheck:

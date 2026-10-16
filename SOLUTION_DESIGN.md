@@ -1,62 +1,77 @@
-# Brightline HR: integration health
+# Problem Restatement
 
-## Customer outcome
-Operations starts with a tenant-scoped attention queue, identifies unhealthy integrations before support reports them, and drills into immutable decision evidence. The dashboard explicitly distinguishes healthy, degraded, unhealthy and unknown. Sparse telemetry is not evidence of success.
+A support ticket can be Brightline HR’s first indication that payroll, signing or directory sync is failing. Ops needs to identify integrations requiring attention before customers report them, understand the evidence and follow recovery.
 
-## Architecture
-Next.js / TypeScript / Tailwind renders the operational view. FastAPI validates sanitized request metadata, derives tenant identity from opaque bearer tokens, calculates metrics in Polars, applies a pure Python health policy and persists snapshots/incidents in PostgreSQL. Supabase hosts PostgreSQL. Two Vercel projects share one Git repository: frontend/ and backend/. No process-local scheduler or queue is required. Vercel Cron calls a secret-protected backend route every five minutes. OpenAI is invoked only on operator request, after a decision is persisted.
+I built a tenant-scoped morning view for earlier investigation and fewer repeated incident openings. Synthetic scenarios demonstrate the workflow; they do not prove customer outcomes.
+
+# Assumptions
+
+These are starting policies to calibrate with Brightline, not universal reliability targets:
+
+- **Timing:** 15-minute rolling windows, evaluated every five minutes. Dashboard polling is every 60 seconds and does not evaluate. Local evaluation is explicit; hosted scheduling is configured.
+- **Volume:** 20 requests before classification. This is an evidence gate, not statistical confidence; one failure already means 5% errors.
+- **Errors:** HTTP 4xx/5xx and timeouts count as failures; warning/critical thresholds are 1%/5%. Customer-caused 4xx responses may need different treatment.
+- **Latency:** P95 warning/critical thresholds are 1.5×/3× the integration target. Sufficient healthy history supports baseline comparisons, without excusing target breaches.
+- **Missing evidence:** insufficient volume, incomplete metrics or stale telemetry means UNKNOWN. Defaults allow 30 minutes without telemetry; evaluations more than two cadences old also make current evidence UNKNOWN.
+- **Persistence and recovery:** two adjacent bad windows with current critical evidence, or three degraded windows, confirm UNHEALTHY. Two adjacent fresh, sufficiently sampled windows below stricter recovery thresholds are required to recover. Gaps and borderline results reset streaks.
+
+Request outcomes indicate reliability, not payroll completion or employee impact.
+
+# Proposed Solution
+
+Request logs → validation/normalization → metric aggregation → deterministic health engine → incidents → API → operations dashboard.
+
+API batches, confirmed file imports and synthetic data share validation, tenant/integration authorization and tenant/request-ID deduplication. Raw events remain separate from metrics. Rollups, explainable snapshots and incident changes commit together; repeating one evaluation bucket cannot advance confirmation.
+
+The dashboard leads with priorities and freshness. AI is separate, operator-requested enrichment after the decision is persisted.
+
+# Health Model
+
+**HEALTHY** requires sufficient fresh evidence within policy, including recovery confirmation when leaving a bad state. **DEGRADED** means a warning or critical evidence awaiting confirmation. **UNHEALTHY** means confirmed critical evidence, sustained degradation, or an existing confirmed failure awaiting recovery. **UNKNOWN** acknowledges that the current evidence cannot support classification; it never resolves an open incident.
+
+I use the worst error, timeout or latency signal. Fast authentication failures must not look healthy; slow successful requests can still disrupt workflows. Volume and freshness gate classification.
+
+Consecutive windows reduce flapping and repeated incident openings. They overlap: confirmation adds delay, and a brief outage can affect several observations. Snapshots retain observed/stabilized states, reasons and policy evidence.
+
+# Architecture
 
 ```mermaid
 flowchart LR
-  P[Provider log exporters] -->|Bearer token / validated batch| F[FastAPI ingestion]
-  F --> DB[(Supabase PostgreSQL)]
-  C[Vercel Cron / 5 min] --> H[Polars metrics + deterministic policy]
-  DB --> H
-  H -->|Snapshots + incidents| DB
-  UI[Next.js operations dashboard] -->|Tenant bearer token| API[FastAPI read API]
-  API --> DB
-  UI --> E[Optional explanation endpoint]
-  E --> O[OpenAI / aggregate evidence only]
-  E -->|Fallback + evidence digest| DB
+    Sources[API logs / file import / synthetic replay] --> Ingest[Shared validated ingestion]
+    Ingest --> DB[(PostgreSQL / Supabase)]
+    DB --> Engine[Polars metrics + deterministic policy]
+    Trigger[Scheduled / operator evaluation] --> Engine
+    Engine -->|Rollups, snapshots, incidents| DB
+    DB --> API[FastAPI]
+    API --> UI[Next.js operations dashboard]
+    API -->|Scoped persisted evidence| AI[Optional OpenAI assistance]
+    AI -->|Advisory result / fallback| API
 ```
 
-## Deterministic policy: 2026-10-v1
-A decision uses the last **completed** 5-minute boundary T, with the event-time interval [T−15 minutes, T). The last 24 hours supplies daily context and last activity; it never averages away a current incident. P95 uses Polars nearest quantile over all observed durations, including failures/timeouts. HTTP ≥400 and explicit timeouts are failures; 429 and authentication failures are operationally important even if the provider is reachable. Retries are individual attempts: this measures integration execution reliability, not unique business-workflow completion.
+One Vercel Services project builds Next.js and FastAPI independently, routing `/api/*` to Python and other application paths to Next.js. Services is currently beta; hosted preview verification is a release gate. Hashed workspace reader/operator tokens and ingestion-only keys scope access to one tenant. Queries enforce isolation, supplemented by database constraints. SQLite is demo/test-only.
 
-| Signal | Degraded | Unhealthy |
-| --- | --- | --- |
-| Error rate | ≥1% | ≥5% |
-| P95 / integration latency target | ≥1.5× | ≥3× |
+# AI Usage
 
-Rules are inclusive. The **worst signal wins**, with ordinal severity scores healthy=100, degraded=60, unhealthy=0. These scores are labels, not availability percentages or statistical confidence estimates. A weighted average could let fast failures look healthy; priority rules avoid this. Category/provider-specific latency targets address slower e-signature workflows versus directory requests. The initial thresholds are explicit hypotheses to calibrate with real logs and on-call feedback.
+I use OpenAI to prioritize known facts into incident/recovery summaries, suggest investigation checks and surface a likely issue category. Request error categorization itself remains deterministic; AI selects only categories supported by those observations, not classifications of arbitrary raw error text.
 
-At least 20 events in the 15-minute window are required for normal classification. An exception detects catastrophic low-volume bursts: ≥5 failures and ≥50% failure rate is unhealthy. Otherwise insufficient samples are unknown. No request within the integration's configured maximum gap (default 30 minutes) is unknown, even if historical errors were severe. This is a telemetry/activity warning, not a declared provider outage. Low-frequency batch integrations need a longer expected activity interval and eventually a separate heartbeat; absent heartbeats are an acknowledged blind spot. The dashboard also shows overdue evaluations (>10 minutes) as unknown independently from saved historical status.
+Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. No tools execute operational actions. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
 
-Each immutable snapshot records metrics, thresholds, policy version, UTC bucket, evaluation time and human-readable reasons. Logs arriving late do not rewrite an existing bucket: they enter subsequent evaluations if still inside the window. Backfills beyond 15 minutes affect daily context only. The source metadata excludes request bodies, URLs, names, emails and raw error text. No AI is needed for classification, errors are categorized deterministically by status/timeout.
+# Trade-offs
 
-## Incident lifecycle and refresh
-Any degraded/unhealthy evaluation opens an incident immediately; there is at most one open incident per tenant/integration. Subsequent bad evaluations update the evidence pointer. Two healthy evaluations in **adjacent** five-minute buckets resolve it. Unknown resets recovery and never resolves an incident. Skipped evaluations cannot accidentally satisfy recovery. A new breach after resolution opens a new incident. Recovery requires at least five minutes between healthy observations and can lag a real recovery because the rolling window retains older failures. Degradation opens immediately for early warning; recovery hysteresis avoids flapping without delaying initial detection.
+- **Rules before anomaly detection:** explainable, testable policies are useful without training data. They require calibration and can miss patterns that a learned model might detect.
+- **Rolling batches before streaming:** five-minute evaluation is simple to operate, but confirmation and aggregation add delay. It is unsuitable for a subsecond response requirement.
+- **PostgreSQL before extra infrastructure:** one store supports ingestion, evidence and incident transactions. Current evaluation reads bounded event windows into Polars; memory and database work increase with traffic.
+- **Configured thresholds plus baselines:** targets prevent a consistently slow provider becoming its own acceptable normal. Baselines catch relative change, but need clean history. Synthetic tests establish behavior, not production sensitivity or false-positive rates.
 
-Cron evaluates every five minutes; the browser polls read-only endpoints every 60 seconds. Manual evaluation evaluates the current completed bucket, never reprocesses an existing bucket. Worst-case detection with timely telemetry is approximately five minutes plus ingestion delay. A time bucket unique constraint and tenant row lock make repeated/concurrent refresh idempotent. Ingestion uses the same tenant lock and tenant/event deduplication. Each tenant refresh is atomic; a failed cron run can retry safely. No OpenAI calls occur in refresh transactions. Changes to integration targets affect future snapshots only.
+# Scale and Production Evolution
 
-## Tenant and credential boundaries
-Production operator and reader tokens are 32+ character random credentials stored only as SHA-256 digests and bound to one tenant. Tenant IDs are never accepted from browser headers. Every read/write lookup scopes to this identity; composite integration foreign keys prevent a tenant's event from referring to a different tenant's integration. An admin CLI provisions access with hidden input. Tokens are held in browser memory, with no persistent localStorage copy. Refreshing the page clears access. RLS is enabled on all application tables with no public policies and with PUBLIC grants revoked. The trusted backend uses a server-only database owner connection and intentionally bypasses RLS; query scoping and tests are therefore essential. RLS blocks Supabase browser APIs, but does not replace backend authorization.
+At higher volume, I would measure ingestion throughput, query cost, memory and evaluation duration. Partitioning, retention, incremental rollups and bounded tenant jobs come first. Event streaming and distributed processing are future options if throughput, backpressure or recovery requirements justify them.
 
-The local demo permits a fixed synthetic tenant without credentials, only in APP_ENV=demo. Vercel fails startup unless APP_ENV=production. No automatic schema creation, seeding or demo fallback occurs in production. Production requires PostgreSQL, explicit origins and a strong CRON_SECRET. CORS is browser policy, not authentication. Demo SQLite is an evaluator convenience and is never the deployed storage.
+Production evolution also needs scheduler/ingestion observability, alert destinations, SSO and membership-based RBAC beyond today's reader/operator tokens. The current product supports observation and advice, not notification delivery or autonomous remediation. Confirmed incident duration is measurable now; MTTD and detection before tickets require independent failure/report timestamps.
 
-## AI assistance
-The explanation endpoint sends only persisted aggregate metrics, policy thresholds, reasons, snapshot ID and status to OpenAI's Responses API. Structured output validates length and shape; instructions distinguish observations from hypotheses and prohibit invented causes or impact. No tools, raw logs, integration names, tenant names or secrets are sent. `store=False`, an 8-second timeout and no automatic retries limit exposure and latency. Model output is explicitly labeled assistance; structured output cannot prove semantic correctness. Operators must verify hypotheses. Explanation records retain the evidence SHA-256, generation time and source/model. Results are cached once per snapshot. Missing credentials, refusals, timeout or malformed results produce a deterministic explanation and never alter health. Fallback caching means a transient AI failure is not automatically retried for the same snapshot; the next snapshot offers a new attempt. Concurrent explanation requests can duplicate an upstream call, but persistence is serialized and unique. This is an accepted low-volume MVP tradeoff.
+# What I Would Do With More Time
 
-## Capacity and production boundary
-This is a production-shaped MVP, not a claim of complete enterprise readiness. The scheduled path is deliberately capped at 100 tenants; each integration reads up to 24h of metadata into Polars. Pilot target: roughly 10 tenants × 10 integrations at ~5 requests/minute per integration. Measure memory and cron duration before expanding. High-volume deployments should aggregate in SQL/hourly rollups, paginate tenant jobs, add retention and use a separate read replica only when measured demand warrants it. Do not add Redis/Kafka preemptively.
-
-Known gaps before onboarding real customers: SSO and user membership/RBAC beyond reader/operator tokens; token expiry/rotation UI and security audit trail; log exporter connectors and ingestion watermark monitoring; paging/notification delivery, acknowledgement and runbooks; automated 30-day log retention with audited snapshot retention; external synthetic probes; authorization rate limiting; deployment alerts, backup/restore rehearsal and load tests. Logs and snapshots are retained until an explicit operational retention process is adopted. The UI supports investigation, but does not send alerts. Cron failures should be monitored in Vercel and connected to the team's existing alerting system. Vercel plan must support a five-minute schedule and fit measured function resource limits. PostgreSQL concurrency verification is in CI; local SQLite tests do not demonstrate PostgreSQL locking behavior.
-
-## Evaluator walkthrough
-1. Seed deterministic scenarios and start both servers.
-2. Compare Gusto's failure outage against DocuSign's latency degradation.
-3. Inspect Workday's stale requests and Checkr's sparse traffic: both unknown for distinct reasons.
-4. Open ADP's history and resolved incident to inspect recovery hysteresis.
-5. Click Explain without a key; the deterministic fallback still explains evidence.
-6. Review tests and rerun `pytest`; inspect API `/docs`.
-7. Provision two tenants in PostgreSQL and verify token-scoped isolation.
+1. Connect a staging exporter, then run production telemetry in shadow mode with Brightline Ops. Calibrate thresholds, minimum volume and recovery margins against real incidents and ticket timing.
+2. Add SSO/RBAC, credential lifecycle controls and operational alerting with acknowledgement and runbooks.
+3. Strengthen observability, retention/redaction and backup/restore procedures; load-test the expected pilot and larger workloads.
+4. Evaluate adaptive baselines or anomaly detection only if labeled traffic shows an improvement over the deterministic policy. Keep operator approval for any future remediation.

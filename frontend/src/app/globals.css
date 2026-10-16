@@ -28,7 +28,24 @@ body {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+summary:focus-visible {
   outline: 3px solid #14b8a6;
   outline-offset: 3px;
+}
+@layer components {
+  .button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-ink hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .filter-select {
+    @apply h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs text-ink;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

@@ -1,0 +1,12 @@
+{
+  "name": "brightline-integration-health",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "demo:access": "node scripts/demo-access.mjs",
+    "test": "node --test scripts/tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

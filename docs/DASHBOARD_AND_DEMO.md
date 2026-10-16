@@ -1,0 +1,60 @@
+# Operations dashboard and demo walkthrough
+
+The dashboard leads with recorded Healthy, Degraded, Unhealthy and Unknown counts for the selected tenant. Click a count to filter the attention queue and table. Counts remain tenant-wide; search/status/type filters affect the queue and table. The attention queue includes degraded/unhealthy decisions, unknown evidence and overdue evaluations, ordered by recorded severity. Every row includes the deterministic reason, error rate, P95, request count, recent direction and actual evaluated_at timestamp.
+
+Overdue evaluation is a separate warning, never a replacement health classification. A historical HEALTHY decision stays visible with an overdue label; it is not evidence of current health. Reloading the view fetches stored data. Evaluate now calls the deterministic engine at server time and respects the integration's configured five-to-fifteen-minute cadence. It does not generate traffic. The browser polls every sixty seconds and cancels superseded tenant/navigation requests. After a failed poll, previous evidence remains visible with an explicit warning; changing credentials or tenant clears the old scope.
+
+Recent direction compares adjacent persisted snapshots. State changes take precedence; otherwise error-rate deltas use percentage points and P95 uses relative percentage change. Insufficient traffic displays Limited evidence rather than a confident numeric trend. Comparisons between rolling windows can overlap and do not constitute an anomaly model.
+
+Detail pages provide current recorded state/reason, metrics, three compact histories (errors, P95, volume), exact accessible measurements, health transitions, latest twenty incidents, top error categories, policy/audit details and sanitized recent logs. Snapshot history is bounded to the latest 288 observations in 24 hours. Zero requests produce missing rate/latency measurements, not fabricated zeros. Charts preserve null gaps and scale their x-axis by time. Text/labels accompany status colors, keyboard focus is visible and reduced-motion preferences are respected.
+
+A cached summary for the current snapshot displays automatically, including for readers. No GET or browser poll invokes OpenAI. If no cached enrichment exists, exact deterministic reason_text is immediately visible. Operators may explicitly request assistance; missing key/API failures keep the deterministic fallback. AI confidence describes advisory interpretation and never the health decision. Readers can inspect but cannot evaluate or request paid enrichment.
+
+## Run or reload synthetic scenarios
+
+Install backend/frontend dependencies using the root README. From the repository root:
+
+```bash
+.venv/bin/python scripts/run_demo.py --scenario all
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+Open `http://localhost:3000`. The launcher generates deterministic synthetic requests relative to the current completed five-minute boundary, replays historical evaluations and starts FastAPI on loopback port 8000. It uses a new temporary SQLite database each run, ignores any inherited DATABASE_URL, disables OpenAI in its child process and removes the temporary database on shutdown. It does not modify the parent shell, existing databases, .env files or hosted schemas. Vercel execution is refused. The default is ninety minutes, three tenants and seed 42; optional arguments are `--duration`, `--tenants`, `--seed` and `--port`. If changing the port, update the frontend process's public backend URL accordingly. Allow the first seed to finish before reloading the browser.
+
+To switch scenarios, stop the demo backend with Ctrl+C and run one of:
+
+| Scenario | Fresh launch command |
+| --- | --- |
+| Healthy | `.venv/bin/python scripts/run_demo.py --scenario healthy` |
+| Authentication outage | `.venv/bin/python scripts/run_demo.py --scenario authentication-outage` |
+| Latency degradation | `.venv/bin/python scripts/run_demo.py --scenario latency-degradation` |
+| Complete outage | `.venv/bin/python scripts/run_demo.py --scenario complete-outage` |
+| Recovery | `.venv/bin/python scripts/run_demo.py --scenario recovery` |
+
+Click Reload view after the new backend starts. Each focused scenario applies to all seven base providers. The `all` scenario instead assigns different scenarios to ten provider series and includes sparse traffic, intermittent failures, isolated spikes and sustained bad windows. Its collapsible demo guide links directly to representative detail pages; those links inspect data rather than reset it. Link IDs apply to `all`; focused datasets use the seven base provider IDs.
+
+Latency-only degradation can escalate to UNHEALTHY after the policy's sustained-warning windows. Recovery shows a resolved historical incident and the required clean recovery windows. A scenario name describes generated behavior; the deterministic engine controls the resulting state. These datasets are finite replays: they do not continuously emit requests, so freshness/traffic can expire over time. Rerun the launcher to get fresh evidence; browser Reload view and Evaluate now do not reseed.
+
+For persistent demo files, the existing `scripts/seed.py` workflow remains available. See [synthetic generation](../data/synthetic/README.md) for reproducibility and precise scenario construction.
+
+## Tenant access and frontend configuration
+
+`GET /api/workspace` supplies identity, role and authorized tenant options. Credential-free `APP_ENV=demo` with SQLite permits switching among synthetic tenants via tenant_id. Token-based access always returns only the token's tenant, including in demo mode. PostgreSQL and production do not allow credential-free tenant switching. In those modes, change Workspace access to an independently provisioned tenant token. A mismatching tenant filter returns 403. Tenant names/records from other production workspaces are not enumerated.
+
+Workspace tokens are held in browser memory and sent only as Authorization headers to the configured backend; they are not saved in localStorage/sessionStorage or URLs. A hard reload clears access and tenant selection. The input is for workspace tokens, never an OpenAI key.
+
+The sole public environment setting is NEXT_PUBLIC_API_BASE_URL, a backend origin such as `https://your-backend.vercel.app`, configured at frontend build time on Vercel. No secret belongs in any NEXT_PUBLIC variable. OPENAI_API_KEY remains in the backend process only. For local browser access use `http://localhost:3000`, matching default CORS_ALLOWED_ORIGINS; a different browser origin requires corresponding backend CORS configuration. No env file was created or modified by this implementation.
+
+## Verification
+
+Run frontend `npm test`, `npm run typecheck` and `npm run build`, plus the backend Pytest suite. The small frontend tests exercise production presentation helpers for recorded-state preservation, evidence gaps, percentage units, priority and chronological transitions. API tests cover token-confined tenant options, local-demo switching, previous snapshots and cached enrichment reads that cannot call AI. GitHub Actions runs both suites and the existing PostgreSQL checks.
+
+## AI-enabled operations walkthrough
+
+See [AI operations](AI_OPERATIONS.md) for incident briefs, six focused questions, audit evidence, freshness and resolved recovery summaries. The regular demo stays keyless by default; `--enable-ai` explicitly permits operator-requested OpenAI using the existing exported backend key. It uses the same services as the real application. Current dashboard evidence becomes UNKNOWN when stale, while original recorded decisions remain in detail/history.

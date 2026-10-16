@@ -10,4 +10,4 @@
 - [x] Verify thresholds, auth, isolation, ingestion, incidents and AI failure.
 - [x] Document credentials, Git/Vercel/Supabase deployment and limits.
 
-Verification boundary: local SQLite/API tests and frontend build were run. PostgreSQL migration/concurrency checks are configured in CI; local Docker daemon was unavailable. Live OpenAI and hosted deployment require user-supplied credentials.
+Verification boundary: local SQLite/API tests, frontend tests/build, browser checks, and disposable PostgreSQL migration/concurrency checks passed. Live OpenAI and hosted Supabase/Vercel deployment remain unverified. See [the latest verification record](VERIFICATION.md) for commands and counts.

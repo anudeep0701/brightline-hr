@@ -1,0 +1,26 @@
+{
+  "events": [
+    {
+      "timestamp": "2026-10-15T12:00:01Z",
+      "integration_id": "workday-payroll",
+      "integration_name": "Workday Payroll",
+      "integration_type": "payroll",
+      "request_id": "workday:68f91c51-02cb-45ef-a393-0d46d4e84d81",
+      "http_status": 200,
+      "latency_ms": 342,
+      "error_code": null,
+      "error_message": null
+    },
+    {
+      "timestamp": "2026-10-15T12:00:02Z",
+      "integration_id": "workday-payroll",
+      "integration_name": "Workday Payroll",
+      "integration_type": "payroll",
+      "request_id": "workday:70c0979a-5221-434e-809a-eac728b03245",
+      "http_status": 503,
+      "latency_ms": 1250,
+      "error_code": "SERVICE_UNAVAILABLE",
+      "error_message": "Provider returned service unavailable"
+    }
+  ]
+}

@@ -1,12 +1,16 @@
-# Database model plan (before implementation)
-PostgreSQL is the deployed source of truth. SQLAlchemy models and a versioned SQL migration describe the same schema. SQLite is restricted to a credential-free local demo and unit tests.
+# Database model plan
 
-- tenants: UUID/id, display name. A tenant row lock serializes refresh and ingestion per tenant.
-- access_tokens: SHA-256 digest, tenant FK, role (operator or reader); no plaintext persistence.
-- integrations: composite tenant/id key, category, owner, expected maximum request gap, latency target.
-- request_logs: composite tenant/event key for idempotency; composite integration FK prevents cross-tenant references; UTC request time, HTTP status, timeout flag, latency, allowlisted error category. No request bodies or personal data.
-- health_snapshots: UUID, tenant/integration FK, unique 5-minute evaluation bucket; metric values, policy version, thresholds, reasons, evaluation time. Immutable evidence.
-- incidents: tenant/integration FK, opening snapshot, last snapshot, opened/resolved timestamps, recovery streak. A PostgreSQL partial unique index permits one open incident per integration.
-- enrichments: snapshot FK, generated time, source, explanation, evidence digest. Independent from health evaluation.
+The initial plan was recorded before business logic. The current storage contract is PostgreSQL/Supabase, with explicit SQLite only for demo/tests.
 
-Index logs by tenant, integration, request time; snapshots by tenant, integration, bucket. Queries always scope to authenticated tenant. PostgreSQL RLS blocks anonymous Supabase API access; database credentials stay server-side. No browser database access.
+- `tenants`: tenant registry.
+- `integrations`: composite tenant/integration identity and provider metadata.
+- `integration_config`: one tenant/integration configuration row; positive latency and freshness targets.
+- `request_events`: independent unaggregated telemetry; composite tenant/event ID makes ingestion idempotent. Validated bounded source metadata is retained separately from analytics.
+- `metric_rollups`: immutable calculated event-time metrics; unique tenant/integration/window.
+- `health_snapshots`: decision, policy, thresholds, reasons and composite link to the tenant-owned rollup; unique evaluation bucket.
+- `health_incidents`: tenant-owned opening/last snapshots and recovery lifecycle; partial uniqueness for open incidents.
+- Supporting `ingestion_api_keys` store domain-separated hashes, tenant scope and revocation metadata; migration 005 enables RLS and revokes browser-role access. Keys grant only ingestion. `access_tokens` store workspace hashes; `enrichments` carry tenant/integration ownership and snapshot evidence digest.
+
+UTC-aware types normalize all timestamps. Composite foreign keys enforce ownership. Tenant row locks coordinate ingestion/refresh. RLS blocks public Supabase data access; the trusted backend also scopes all queries by authenticated tenant.
+
+`001_initial.sql` is immutable. `002_ingestion_storage.sql` preserves and backfills v1 records into the current schema. See [Database and ingestion](DATABASE_AND_INGESTION.md) for initialization, per-record validation, file imports and deployment.

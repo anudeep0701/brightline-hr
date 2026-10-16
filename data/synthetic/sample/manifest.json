@@ -1,0 +1,33 @@
+{
+  "duration_minutes": 60,
+  "end_exclusive": "2026-10-15T13:00:00+00:00",
+  "event_count": 11422,
+  "events_by_scenario": {
+    "authentication_failures": 1073,
+    "brief_spike": 1242,
+    "complete_outage": 1081,
+    "elevated_error_rate": 1404,
+    "healthy": 1310,
+    "intermittent_failure": 1353,
+    "latency_only_degradation": 1228,
+    "low_traffic": 12,
+    "recovery_after_incident": 1414,
+    "sustained_bad_windows": 1305
+  },
+  "generator_version": "1",
+  "integration_series_count": 20,
+  "requests_sha256": "67d367f6b421ed51eb5ab91f854052ba7f8797522eb9bffee0c8a8dda69fa56c",
+  "scenario": "all",
+  "seed": 42,
+  "start": "2026-10-15T12:00:00+00:00",
+  "tenants": [
+    {
+      "id": "brightline",
+      "name": "Brightline HR (Synthetic)"
+    },
+    {
+      "id": "tenant-002",
+      "name": "Rodriguez, Figueroa and Sanchez (Synthetic)"
+    }
+  ]
+}

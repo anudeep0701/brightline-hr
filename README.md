@@ -1,84 +1,245 @@
-# Brightline Integration Health
+# Brightline HR Integration Health
 
-A production-shaped FDE case study: tenant-scoped operational health across payroll, e-signature, ATS, directory and notification systems. Deterministic decisions, auditable evidence and optional OpenAI incident assistance.
+Brightline HR runs payroll, e-signature, ATS, directory and notification integrations for its customers. Ops often finds out that an integration is broken when a customer opens a support ticket. This project turns request logs into a morning view of what needs attention, why, and whether it is recovering.
 
-The repository root is the monorepo (`brightline-hr` locally); no extra nested checkout is required.
+The overview prioritizes issues and evidence gaps; integration details explain decisions, investigation and recovery. Customers can upload pilot logs or send live events through an authenticated API. Both paths use the same ingestion and health services.
 
-## Run locally without credentials
-Requires Python 3.11+ and Node.js 22+. Commands below start from this repository root. No `.env` file is required or created.
+This is an FDE case-study MVP. Its seeded outcomes demonstrate the workflow; they are not production results or customer ROI.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-DATABASE_URL=sqlite:///./data/demo.db python scripts/seed.py
-cd backend
-uvicorn app.main:app --reload --port 8000
+## Design decisions
+
+- **Health is deterministic.** A configurable policy combines errors, timeouts, latency, volume and freshness. Good latency cannot cancel high errors. Snapshots retain metrics, policy evidence and reasons.
+- **AI assists investigation.** Briefs and focused answers use known facts and suggested checks. AI cannot change health, policy or incidents, or execute actions. Missing credentials and failed/invalid responses return deterministic explanations.
+- **UNKNOWN is meaningful.** Low volume, absent telemetry and stale evidence do not establish health. Current evidence is distinct from historical decisions.
+- **Confirmation and recovery take multiple windows.** Two adjacent bad windows with current critical evidence, or three consecutive degraded windows, confirm UNHEALTHY; two clean windows below stricter thresholds resolve an incident. Repeated evaluation of one window does not advance a streak; UNKNOWN does not resolve incidents. Overlapping windows test persistence, not statistical independence.
+- **Tenant scope comes from credentials.** Workspace tokens grant reader/operator access. Separate ingestion keys authorize writes for one tenant only. Both are stored as hashes. Submitted tenant IDs cannot grant access to another tenant.
+
+Defaults: 15-minute windows, five-minute cadence, 20-request minimum, 1%/5% error and timeout warning/critical thresholds, and 1.5×/3× P95 latency thresholds. Baseline comparisons require enough history. Per-integration policy is configurable through the authenticated API.
+
+See [SOLUTION_DESIGN.md](SOLUTION_DESIGN.md) for architecture trade-offs and [the health policy](docs/HEALTH_ENGINE.md) for exact rules.
+
+## Architecture
+
+Next.js/TypeScript/Tailwind frontend; FastAPI/Pydantic backend; Polars analytics; PostgreSQL/Supabase storage. SQLite is restricted to local demos and tests.
+
+```mermaid
+flowchart LR
+    Logs[Customer exporter] -->|Ingestion key| API[FastAPI]
+    UI[Next.js dashboard] -->|Workspace token / file upload| API
+    Seed[Synthetic generator / trusted file CLI] --> Ingest[Shared ingestion service]
+    API --> Ingest
+    Ingest --> DB[(PostgreSQL / Supabase)]
+    API --> Health[Polars metrics → deterministic policy → incidents]
+    Health --> DB
+    API --> AI[Optional OpenAI assistance]
+    DB -->|Persisted evidence| AI
+    AI -->|Advisory brief or fallback| API
 ```
 
-In a second terminal:
+New providers supply normalized events and policy configuration; they do not require a new health engine.
 
-```bash
-cd frontend
-npm ci
+## Repository
+
+| Directory | Purpose |
+| --- | --- |
+| `frontend/src/` | Overview, integration detail, data onboarding, shared components and typed API client |
+| `backend/app/` | Thin routes; schemas, database access, ingestion, metrics, health, incidents and AI services |
+| `backend/migrations/` | Ordered, digest-checked PostgreSQL migrations |
+| `backend/tests/`, `frontend/tests/` | Domain/API tests and frontend behavior/rendering tests |
+| `scripts/` | Local launcher, generation, seeding, migrations, credentials and smoke checks |
+| `data/synthetic/` | Reproducible sample and generator documentation |
+| `docs/` | Detailed contracts, onboarding, policy, business measurement and walkthroughs |
+
+## Local setup
+
+Requires Python 3.11+ and Node.js 22+. These commands assume macOS/Linux and run from the repository root:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements.txt
+npm --prefix frontend ci
+```
+
+Create the repository-root `.env` yourself by copying `.env.example`, **only if you do not already have one**. Keep `.env.example` placeholders blank and put actual configuration in your ignored `.env`. Do not create a separate frontend environment file.
+
+For a local SQLite demo, set `DATABASE_URL=sqlite:///./data/demo-v4.db` and `APP_ENV=demo` in your file. Seed once, then start both services:
+
+```sh
+export APP_ENV=demo
+export DATABASE_URL=sqlite:///./data/demo-v4.db
+.venv/bin/python scripts/seed.py
 npm run dev
 ```
 
-Open [the dashboard](http://localhost:3000) and [API documentation](http://localhost:8000/docs). Default local `APP_ENV=demo` uses a synthetic tenant and SQLite at `data/demo.db`; production requires PostgreSQL. The SQLite default path assumes Uvicorn runs from `backend/`, while the seed command explicitly uses the repository-root path. Demo seeding is non-destructive and only runs once. To regenerate fresh scenarios later, stop the backend, explicitly remove **only** `data/demo.db`, then rerun the seed command. Data does not advance automatically: stale telemetry is a deliberate observable state.
+These exports override file configuration in this terminal. Seeding preserves existing tenants; use disposable replay below for fresh evidence. Legacy incompatible SQLite schemas need a fresh filename.
 
-Use `docker compose up -d` for local PostgreSQL. Set `DATABASE_URL` to `postgresql://brightline:local-demo-only@localhost:5432/brightline`, then run `python scripts/migrate.py` and optionally `python scripts/seed.py` with `APP_ENV=demo`. Pass the same database URL to the backend process. SQLite is only an evaluator convenience; PostgreSQL is the deployed database.
+After setup, **`npm run dev`** is the single launch command. It starts both services; Ctrl+C stops both. Database initialization remains explicit.
 
-## What to inspect
-- Gusto: failure-rate outage; fast responses cannot offset errors.
-- DocuSign: degraded latency despite successful responses.
-- Greenhouse, Okta and Slack: healthy.
-- Workday: stale telemetry; Checkr: insufficient samples.
-- ADP: historical incident and sustained recovery.
-- Integration detail: exact reasons, versioned thresholds, 24-hour history, incident timeline and recent sanitized logs.
-- Explain: deterministic fallback without a key; optional aggregate-grounded OpenAI output when configured.
+| Service | URL |
+| --- | --- |
+| Dashboard | http://localhost:3000 |
+| Backend | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Liveness / database readiness | http://localhost:8000/healthz / http://localhost:8000/readyz |
 
-## Health policy
-Every five minutes, evaluate the last 15-minute window. ≥1% error rate or ≥1.5× latency target is degraded; ≥5% or ≥3× is unhealthy. Worst signal wins. Fewer than 20 samples or stale telemetry is unknown, except catastrophic low-volume bursts (≥5 failures and ≥50% error rate). Incidents resolve after two adjacent healthy evaluation buckets. The browser refreshes every 60 seconds. Read [SOLUTION_DESIGN.md](SOLUTION_DESIGN.md) for tradeoffs, edge cases and scale limits.
+### PostgreSQL and workspace access
 
-## Verify
-```bash
-cd backend
-../.venv/bin/pytest -q
-cd ../frontend
-npm run typecheck
-npm run build
-npm audit
+For PostgreSQL/Supabase, export the development database URI as `DATABASE_URL` privately in your administration terminal, then migrate:
+
+```sh
+.venv/bin/python scripts/migrate.py
 ```
 
-CI additionally provisions isolated PostgreSQL and checks migrations, RLS enablement and concurrent refresh behavior through `scripts/check_postgres.py`. To run that check locally, provide a dedicated PostgreSQL test database via `DATABASE_URL` and `APP_ENV=test`; it creates and removes only its own randomized test tenant. Never point CI at customer data.
+Migrations are transactional and digest-checked; unchanged applied versions are skipped. For a customer pilot, provision rather than seed:
 
-## Layout
-```text
-frontend/src/app/           dashboard and integration detail routes
-frontend/src/components/   shared shell, status and history components
-frontend/src/lib/          typed API client and formatting
-frontend/src/types/        API response types
-backend/app/api/           HTTP routes and tenant authorization
-backend/app/schemas/       Pydantic ingestion/output schemas
-backend/app/models/        SQLAlchemy persistence models
-backend/app/db/            engine/session access
-backend/app/ingestion/     idempotent validated batch ingestion
-backend/app/metrics/       Polars event-time analytics
-backend/app/health/        pure versioned policy and refresh service
-backend/app/incidents/     recovery lifecycle
-backend/app/ai/            optional cached explanations and fallback
-backend/migrations/        versioned PostgreSQL schema
-backend/tests/             deterministic and API regression tests
-data/                      ignored synthetic request data / local database
-scripts/                   generation, seed, migration, admin and PG checks
-docs/                      model plan, API contract, checklist and deployment
+```sh
+.venv/bin/python scripts/admin.py pilot 'Brightline pilot' --integration workday-payroll --generate-token
 ```
 
-## Credentials and deployment
-Only [.env.example](.env.example) is tracked, with blank placeholders. Keep it blank and configure actual values through your local environment or Vercel settings. [Credentials and deployment](docs/CREDENTIALS_AND_DEPLOYMENT.md) gives step-by-step OpenAI key creation, Supabase connection setup, workspace token provisioning, cron configuration and Git-based Vercel deployment.
+Save the token privately, then paste it into **Workspace access → Workspace bearer token → Connect**, without `Bearer`. Browser memory only; refresh clears it. Plaintext cannot be retrieved later.
 
-Deploy as two Vercel projects using `frontend/` and `backend/` roots, sharing this Git repository and Supabase PostgreSQL. The five-minute cron needs a suitable Vercel plan. No credentials were provisioned and no hosted deployment was performed by this implementation.
+For `brightline`, `npm run demo:access` issues a demo workspace token using root configuration. It does not seed. PostgreSQL always requires authentication, including in demo mode; local SQLite demo access is credential-free.
 
-This MVP includes hashed tenant tokens, role checks, validated metadata, immutable evidence, transactional refresh and automated tests. It does not yet include SSO, real provider exporters, notification delivery, retention automation or enterprise operational hardening. These boundaries and the rollout plan are explicit in the solution design.
+## Environment variables
 
-Production builds explicitly use Next.js Webpack (`next build --webpack`) for compatibility with restricted local build environments. The Next.js development server still uses its default bundler.
+The local Node launchers load root `.env`, then `.env.local`; nonempty exported variables take precedence. **Standalone Python CLIs read process variables only.** Export the required values before migrations, provisioning, file imports or running Uvicorn directly.
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Required backend database URI. Supabase PostgreSQL in deployment; exact local demo syntax: `sqlite:///./data/demo-v4.db` from the repository root. |
+| `APP_ENV` | `demo` locally, `test` for isolated tests, `production` when hosted. Default is `demo`; `development` is not a supported value. |
+| `CORS_ALLOWED_ORIGINS` | Optional exact browser origins. Local default: `http://localhost:3000`; leave unset in same-origin production. Explicit production grants must be HTTPS. |
+| `NEXT_PUBLIC_API_BASE_URL` | Optional public API override. Local default: `http://localhost:8000`; leave unset in production for same-origin `/api/*`. Overrides are embedded during build. Never a secret. |
+| `OPENAI_API_KEY` | Optional backend-only credential. Core monitoring works without it. |
+| `OPENAI_MODEL` | Optional backend-only model ID; configured default: `gpt-6-luna`. Requires model access in the API project. |
+| `CRON_SECRET` | Independent random secret, at least 32 characters for production. Authorizes scheduled evaluation; unnecessary for local demo use. |
+| `PGPASSWORD` | Used only by the optional local PostgreSQL Docker Compose setup. Not required by the deployed application. |
+
+Environment files, keys and local databases are ignored by Git. The root development launcher removes backend credentials from the frontend process.
+
+## Synthetic data and demo replay
+
+Ten scenarios cover healthy traffic, elevated errors, latency-only degradation, outage, intermittent/authentication failures, low traffic, recovery, brief spikes and sustained failures. Default replay: three fictional tenants, ten series each, including Workday, ADP, DocuSign, Greenhouse, Okta, Slack and Twilio.
+
+To generate files offline:
+
+```sh
+.venv/bin/python scripts/generate_synthetic_data.py --scenario all --duration 90 --tenants 3 --seed 42
+```
+
+Output: ignored `data/synthetic/generated/`. Fixed start/seed and locked dependencies reproduce identical bytes. Committed sample: `data/synthetic/sample/`. See [scenario names and options](data/synthetic/README.md).
+
+For a fresh, disposable demo, stop the running app and use two terminals:
+
+```sh
+# Terminal 1: generate, ingest, replay health history and serve the backend
+.venv/bin/python scripts/run_demo.py --scenario all
+```
+
+```sh
+# Terminal 2: serve the frontend
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm --prefix frontend run dev
+```
+
+Replay uses temporary SQLite. Focused choices: `healthy`, `authentication-outage`, `latency-degradation`, `complete-outage`, `recovery`. AI is disabled unless `--enable-ai` is supplied with an exported key. Clear workspace access if its token belongs to another database.
+
+Regenerate before presenting: demo time does not advance and freshness expires. Sustained degradation can finish UNHEALTHY; earlier transitions remain visible. See [the four-minute walkthrough](docs/PRODUCT_WALKTHROUGH.md).
+
+## Ingestion and evaluation
+
+Use **Data sources** for a pilot: select CSV/JSON/NDJSON/JSONL, validate, review rejected rows and explicitly confirm import. Files are bounded to 2 MiB / 1,000 records. Register integration IDs first.
+
+For live telemetry, issue an ingestion-only key from a trusted terminal with `DATABASE_URL` exported:
+
+```sh
+.venv/bin/python scripts/ingestion_keys.py create pilot --name 'Staging exporter'
+```
+
+Save the once-displayed secret in the exporter, then send batches to `POST /api/ingest`. Keys cannot read the dashboard or request AI assistance. Retries are idempotent by tenant/request ID. See [the request example](docs/examples/production-ingest.http) and [customer onboarding](docs/DATA_ONBOARDING.md).
+
+A trusted file import uses the same domain service:
+
+```sh
+.venv/bin/python scripts/ingest_file.py docs/examples/production-ingest.json --tenant pilot --allow-historical
+```
+
+This imports the fixed historical example into the pilot integration registered above. It does not establish current health or rewrite completed windows.
+
+Use **Evaluate now** or `POST /api/evaluate` with an operator token. Same-bucket evaluation is idempotent. The UI polls every 60 seconds; polling does not evaluate. Local evaluation is manual; hosted scheduling is separate.
+
+To start services individually, export backend configuration and run this from the root:
+
+```sh
+.venv/bin/python -m uvicorn app.main:app --app-dir backend --reload --port 8000
+```
+
+Start the frontend with the Terminal 2 command above.
+
+## Tests
+
+From the repository root:
+
+```sh
+.venv/bin/python -m pytest -q backend/tests
+npm --prefix frontend test
+npm test
+npm --prefix frontend run lint
+npm --prefix frontend run typecheck
+npm --prefix frontend run build
+```
+
+Lint checks Prettier formatting. Backend tests use isolated storage and mocked AI; no credentials are needed. For an actual HTTP pipeline check with temporary SQLite and no OpenAI:
+
+```sh
+.venv/bin/python scripts/smoke_test.py --port 8012
+```
+
+CI checks PostgreSQL upgrades/concurrency separately with `scripts/check_postgres.py`; SQLite tests do not establish those behaviors. See [testing notes](docs/TESTING.md).
+
+## API
+
+Interactive schemas are at `/docs`. Workspace routes require a tenant-scoped reader/operator token; writes and AI requests require an operator. Exporters use an ingestion key solely for `/api/ingest`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /healthz`, `GET /readyz` | Process liveness and storage/schema readiness |
+| `GET /api/workspace` | Authorized workspace identity and role |
+| `GET /api/v1/dashboard` | Overview data, freshness and calculated operational impact |
+| `GET /api/health-summary`, `GET /api/integrations` | Filtered health summary and integration list |
+| `GET /api/integrations/{id}` | Current evidence, bounded history, logs and incidents |
+| `GET /api/integrations/{id}/metrics`, `GET /api/integrations/{id}/incidents` | Metric or incident history |
+| `POST /api/ingest` | Validated external request batch with accepted/rejected/duplicate counts |
+| `POST /api/imports/preview`, `POST /api/imports/commit` | Workspace-authorized file validation and confirmed import |
+| `POST /api/evaluate` | Evaluate the authenticated tenant at server time |
+| `POST /api/integrations/{id}/brief`, `POST /api/integrations/{id}/investigate`, `POST /api/integrations/{id}/explain` | Grounded assistance with deterministic fallback |
+
+API health states are uppercase, rates are fractions, latency is milliseconds and timestamps are UTC. See [API contracts](docs/API_CONTRACT.md) for filters, pagination, compatibility routes and error responses.
+
+## Deployment
+
+Use **one Vercel project**, Root Directory **`.`**, with the root `vercel.json`. Vercel Services builds `frontend/` as Next.js and `backend/` as FastAPI, then ships them together. Services is currently in beta; verify the first hosted preview before relying on it. See [Vercel Services](https://vercel.com/docs/services).
+
+Prepare Supabase first: export its PostgreSQL connection URI privately in a trusted terminal, apply `scripts/migrate.py`, and provision tenants, integrations and credentials. Use TLS and the transaction pooler for serverless runtime connections; the existing engine uses `NullPool` and disables automatic prepared statements. Use a direct/session administration connection when needed. Do not seed synthetic data into a customer database.
+
+Import the Git repository once. Keep project-level build/install/output overrides unset; the root config owns service settings:
+
+| Service | Install | Build / entrypoint |
+| --- | --- | --- |
+| `frontend/` | `npm ci` | `npm run build` |
+| `backend/` | `pip install -r requirements.txt` | `index:app`; Python 3.12 |
+
+Set project variables `DATABASE_URL`, `APP_ENV=production` and a 32+ character `CRON_SECRET`. Optional AI uses `OPENAI_API_KEY` and `OPENAI_MODEL`. Leave `NEXT_PUBLIC_API_BASE_URL` and `CORS_ALLOWED_ORIGINS` unset for same-origin production. Project variables are shared by services; only Python code consumes backend credentials, and no secret uses a `NEXT_PUBLIC_` name.
+
+`/api/*`, probes, `/docs`, `/redoc` and `/openapi.json` route to FastAPI without stripping prefixes. Other paths, including Next.js assets, route to the frontend. Existing workspace and ingestion bearer authentication still applies. The frontend makes no proxy API handlers and contains no Python business logic.
+
+The root cron requests `/api/cron/refresh` every five minutes with `CRON_SECRET` authorization. That schedule needs Pro/Enterprise. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and actual cron executions before pilot use. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
+
+## Known limitations
+
+There are no provider pull connectors, SSO, notification delivery, autonomous remediation or hosted onboarding portal. Credential administration is CLI-only. File backfill preserves raw events but does not replay historical health decisions. Ingestion has batch limits but no application rate limiter or full retention/redaction automation.
+
+Operational impact reports confirmed incident openings/resolutions, mean confirmed duration, healthy share and evidence gaps. MTTD, detection before customer tickets, investigation time, false positives and verified customer-impact duration need independent production evidence; this project does not invent them.
+
+## Production next steps
+
+A pilot should connect a staging exporter, run in production shadow mode, calibrate policies with Ops, and measure those outcomes before operational adoption. Before go-live, establish database roles, backup/restore, retention, scheduler monitoring, rate controls and load limits. Add alert delivery or approved remediation only after the detection and recovery policies have earned operator trust. See [business measurement and rollout](docs/BUSINESS_VALUE.md).

@@ -1,5 +1,18 @@
 # Verification record
 
+## Vercel Hobby refresh adaptation — 2026-10-18
+
+The committed Hobby deployment contains no scheduled cron, including no daily job. Workspace operators use the existing **Evaluate now** action and `POST /api/evaluate`. The backend cron endpoint, secret checks, locks, idempotency, tenant evaluation and health thresholds are unchanged. Production settings still require `CRON_SECRET`; it remains server-only. Intended enterprise evaluation cadence remains approximately five minutes with a capable scheduler.
+
+- Backend: **312 passed**, including a new regression proving manual refresh requires an operator, cannot cross tenants, is idempotent within a bucket, and does not grant workspace tokens cron access. The real cron secret still permits the existing global scheduler path.
+- Frontend: **35 passed**. Existing button state, progress/error handling and dashboard reload were verified in source; no new UI or domain logic was introduced.
+- Launcher/deployment: **13 passed**, including no Hobby cron and preserved routing for both operator and scheduler endpoints.
+- Ruff F/I, frontend lint, TypeScript and isolated production Next.js build passed. Production entrypoint/startup and unauthenticated cron rejection passed with no environment files loaded.
+- Real HTTP smoke passed with **16,726 synthetic events** in temporary SQLite. It covered probes/docs/CORS, workspace and ingestion authentication, tenant isolation, retries, malformed records, all four health states, incident recovery, AI fallback, file imports and restart.
+- Additional same-origin HTTP validation against the new production build passed frontend routing, probes/docs, workspace authorization, tenant boundaries, live ingestion/deduplication, health evaluation, AI fallback and protected cron invocation. This was a disposable local gateway using the committed route table, not a hosted Vercel deployment. Review servers were stopped afterward.
+- Tracked-path and credential-pattern checks found no real environment files, local credential databases, virtual environments, dependency trees or live credentials. Only intentional invalid-URI fixtures matched. Frontend source and production browser bundles contain no `CRON_SECRET` reference. No environment file or hosted database was accessed.
+- GitHub's existing commit had passing CI but no Vercel statuses/deployment records were visible. No Vercel CLI, local project link or authenticated Vercel browser session was available. Git push/deployment outcomes are reported separately; a passing local build does not establish a hosted deployment.
+
 ## One-project deployment adaptation — 2026-10-16
 
 The current deployment target is one root Vercel Services project. The previous independent-project deployment instructions are superseded. Services is a first-party beta feature; no hosted build/deployment has been run.

@@ -8,7 +8,7 @@ I built a tenant-scoped morning view for earlier investigation and fewer repeate
 
 These are starting policies to calibrate with Brightline, not universal reliability targets:
 
-- **Timing:** 15-minute rolling windows, evaluated every five minutes. Dashboard polling is every 60 seconds and does not evaluate. Local evaluation is explicit; hosted scheduling is configured.
+- **Timing:** 15-minute rolling windows with an intended production evaluation cadence of approximately five minutes. The hosted Hobby demo evaluates on operator request; it has no configured cron. A production-capable scheduler can invoke the existing protected refresh endpoint. Dashboard polling is every 60 seconds and does not evaluate.
 - **Volume:** 20 requests before classification. This is an evidence gate, not statistical confidence; one failure already means 5% errors.
 - **Errors:** HTTP 4xx/5xx and timeouts count as failures; warning/critical thresholds are 1%/5%. Customer-caused 4xx responses may need different treatment.
 - **Latency:** P95 warning/critical thresholds are 1.5×/3× the integration target. Sufficient healthy history supports baseline comparisons, without excusing target breaches.

@@ -232,7 +232,9 @@ Set project variables `DATABASE_URL`, `APP_ENV=production` and a 32+ character `
 
 `/api/*`, probes, `/docs`, `/redoc` and `/openapi.json` route to FastAPI without stripping prefixes. Other paths, including Next.js assets, route to the frontend. Existing workspace and ingestion bearer authentication still applies. The frontend makes no proxy API handlers and contains no Python business logic.
 
-The root cron requests `/api/cron/refresh` every five minutes with `CRON_SECRET` authorization. That schedule needs Pro/Enterprise. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and actual cron executions before pilot use. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
+The case-study deployment uses Vercel Hobby, so health evaluation can be triggered on demand and any configured Vercel cron is limited to a Hobby-compatible cadence. The intended production operating cadence is approximately five minutes and would use a production-capable scheduler.
+
+The committed Hobby configuration contains no cron entry; use **Evaluate now** with a workspace operator token. `/api/cron/refresh` remains available for a future scheduler with `CRON_SECRET` authorization. `CRON_SECRET` is still required by production settings, including the hosted Hobby demo. To enable production scheduling on a suitable tier, add a root cron entry with path `/api/cron/refresh` and schedule `*/5 * * * *`. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and operator evaluation before demo use; verify recurring scheduler execution before production adoption. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
 
 ## Known limitations
 

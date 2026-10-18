@@ -24,6 +24,5 @@
     { "source": "/redoc", "destination": { "service": "backend" } },
     { "source": "/openapi.json", "destination": { "service": "backend" } },
     { "source": "/(.*)", "destination": { "service": "frontend" } }
-  ],
-  "crons": [{ "path": "/api/cron/refresh", "schedule": "*/5 * * * *" }]
+  ]
 }

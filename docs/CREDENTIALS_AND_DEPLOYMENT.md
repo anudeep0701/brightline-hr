@@ -91,9 +91,21 @@ Local `npm run dev` still starts ports 3000 and 8000 and configures exact localh
 
 ## 4. Scheduled evaluation
 
-The root config owns a single five-minute cron: `GET /api/cron/refresh`. Vercel routes it into FastAPI and supplies `Authorization: Bearer <CRON_SECRET>`. The existing handler verifies the secret and evaluates tenant policies; bucket idempotency, locking and incident hysteresis are unchanged. Public callers with no/incorrect secret receive 401.
+The case-study deployment uses Vercel Hobby, so health evaluation can be triggered on demand and any configured Vercel cron is limited to a Hobby-compatible cadence. The intended production operating cadence is approximately five minutes and would use a production-capable scheduler.
 
-The committed frequency requires **Pro or Enterprise**. Hobby rejects sub-daily cron schedules; changing it to daily would violate this product's freshness expectations. Confirm [plan limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and actual invocations before pilot use. Cron executes in production, not previews. Keep monitoring for failed/overlapping or slow evaluations; current scheduling is bounded to 100 tenants.
+The committed root config has **no cron entry**, including no daily cron. A daily job would not provide the intended operational freshness and would unnecessarily advance a static demo without new telemetry. An authenticated workspace operator uses **Evaluate now**, which calls `POST /api/evaluate`, evaluates only that tenant through the existing service, and reloads the dashboard. The button is disabled for readers and while work is running; failures are shown in the dashboard. It never uses or receives `CRON_SECRET`.
+
+**Keep `CRON_SECRET` configured in Vercel**, even on Hobby: existing production settings still require at least 32 characters. `GET /api/cron/refresh` remains protected and available for future production scheduling. No/incorrect secret returns 401; locking, idempotency, tenant evaluation and incident confirmation/recovery are unchanged. Scheduler choice does not change the health policy.
+
+For intended production on a suitable paid scheduling tier, add this top-level entry to the root `vercel.json`:
+
+```json
+"crons": [{ "path": "/api/cron/refresh", "schedule": "*/5 * * * *" }]
+```
+
+Alternatively, an approved production scheduler can invoke the same HTTPS endpoint with server-held bearer authorization. Do not put that secret in browser code. Confirm [Vercel plan limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) and actual invocations before operational adoption. Cron executes in production, not previews. Current cross-tenant scheduling is bounded to 100 tenants.
+
+Manual evaluations remain subject to configured buckets: repeated clicks in one bucket do not advance streaks, and skipped buckets break continuity. Static/old demo traffic will become UNKNOWN; on-demand evaluation does not manufacture recent telemetry or preserve old healthy states. Use staging/demo ingestion when demonstrating fresh evidence. Daily scheduling is optional but intentionally not configured.
 
 ## 5. Release verification
 
@@ -105,6 +117,6 @@ After an approved deployment, check:
 4. An operator can call `/api/evaluate`; repeated same-bucket evaluation does not advance incidents.
 5. The dashboard and detail pages load same-origin evidence, including file-import validation and confirmation.
 6. AI brief/investigation requests show deterministic fallback without an OpenAI key. Verify live provider access separately if AI is enabled.
-7. Unauthenticated cron calls return 401; scheduled production calls succeed and keep evidence fresh.
+7. Unauthenticated cron calls return 401. For the Hobby demo, authenticated operator evaluation succeeds without any scheduler. For enterprise operation, verify recurring scheduled calls succeed and keep evidence fresh.
 
 Git pushes deploy both services together; previews and application rollbacks are atomic across the two builds. Database migrations remain manual and are not rolled back with application code. Services beta, shared project configuration and coupled release cadence are the trade-offs for one domain and one deployment. No hosted deployment has been verified by local tests alone.

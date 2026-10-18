@@ -19,6 +19,31 @@ B = {"Authorization": "Bearer b"}
 READER = {"Authorization": "Bearer reader"}
 
 
+def test_hobby_manual_refresh_is_operator_scoped_and_cron_remains_protected(client, db):
+    assert client.post("/api/evaluate").status_code == 401
+    assert client.post("/api/evaluate", headers=READER).status_code == 403
+    assert client.post("/api/evaluate?tenant_id=b", headers=A).status_code == 403
+    first = client.post("/api/evaluate", headers=A)
+    assert first.status_code == 200 and first.json()["created"] == 1
+    assert client.post("/api/evaluate", headers=A).json()["created"] == 0
+    assert [row.tenant_id for row in db.scalars(select(Snapshot))] == ["a"]
+    assert client.get("/api/cron/refresh").status_code == 401
+    assert client.get("/api/cron/refresh", headers=A).status_code == 401
+    assert (
+        client.get(
+            "/api/cron/refresh", headers={"Authorization": "Bearer wrong"}
+        ).status_code
+        == 401
+    )
+    assert (
+        client.get(
+            "/api/cron/refresh", headers={"Authorization": "Bearer test-cron-secret"}
+        ).status_code
+        == 200
+    )
+    assert {row.tenant_id for row in db.scalars(select(Snapshot))} == {"a", "b"}
+
+
 def test_public_probes_and_storage_failure(client):
     assert client.get("/healthz").json() == {"status": "ok"}
     assert client.get("/readyz").json() == {"status": "ready"}

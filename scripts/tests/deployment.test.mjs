@@ -19,8 +19,13 @@ test("public backend contracts and scheduler reach FastAPI before the frontend c
   ]) assert.equal(service(path), "backend", path);
   for (const path of ["/", "/data-sources", "/integrations/payroll", "/_next/static/chunk.js", "/apiculture"])
     assert.equal(service(path), "frontend", path);
-  assert.deepEqual(config.crons, [{ path: "/api/cron/refresh", schedule: "*/5 * * * *" }]);
   assert.ok(config.rewrites.every((rule) => !rule.destination.path), "No prefix stripping or route renaming");
+});
+
+test("Hobby demo uses operator refresh without a scheduled cross-tenant cron", () => {
+  assert.equal(Object.hasOwn(config, "crons"), false);
+  assert.equal(service("/api/evaluate"), "backend");
+  assert.equal(service("/api/cron/refresh"), "backend");
 });
 
 test("one root config owns independent framework builds and the existing Python entrypoint", () => {

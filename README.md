@@ -56,7 +56,7 @@ Requires Python 3.11+ and Node.js 22+. These commands assume macOS/Linux and run
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -r backend/requirements.txt
+.venv/bin/python -m pip install -r backend/requirements-dev.txt
 npm --prefix frontend ci
 ```
 
@@ -226,7 +226,9 @@ Import the Git repository once. Keep project-level build/install/output override
 | Service | Install | Build / entrypoint |
 | --- | --- | --- |
 | `frontend/` | `npm ci` | `npm run build` |
-| `backend/` | `pip install -r requirements.txt` | `index:app`; Python 3.12 |
+| `backend/` | Automatic Python dependency installation | `index:app`; Python 3.12 |
+
+Vercel discovers `backend/requirements.txt`, which pins only runtime dependencies. Leave the backend install override unset so Vercel can optimize its Python bundle. Local setup uses `backend/requirements-dev.txt` for tests, synthetic generation and development tools. Test configuration lives in `backend/pytest.ini`; there is no competing Python project manifest. Service-scoped exclusions keep tests, caches and local databases out of the function. Polars remains in production because live health aggregation uses it.
 
 Set project variables `DATABASE_URL`, `APP_ENV=production` and a 32+ character `CRON_SECRET`. Optional AI uses `OPENAI_API_KEY` and `OPENAI_MODEL`. Leave `NEXT_PUBLIC_API_BASE_URL` and `CORS_ALLOWED_ORIGINS` unset for same-origin production. Project variables are shared by services; only Python code consumes backend credentials, and no secret uses a `NEXT_PUBLIC_` name.
 

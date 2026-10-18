@@ -1,0 +1,13 @@
+# Local development, tests and reproducible synthetic data.
+-r requirements.txt
+click==8.5.0
+Faker==39.1.0
+iniconfig==2.3.1
+numpy==2.4.6
+packaging==26.3
+pluggy==1.7.0
+Pygments==2.21.0
+pytest==9.1.1
+tzdata==2026.5
+uvicorn==0.54.0
+ruff==0.17.1

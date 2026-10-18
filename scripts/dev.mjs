@@ -116,7 +116,7 @@ async function main() {
   const next = join(frontend, "node_modules/next/dist/bin/next");
   if (!existsSync(python)) {
     throw new Error(
-      "Missing .venv. Run python3 -m venv .venv and install backend/requirements.txt into that environment.",
+      "Missing .venv. Run python3 -m venv .venv and install backend/requirements-dev.txt into that environment.",
     );
   }
   if (!existsSync(next)) {

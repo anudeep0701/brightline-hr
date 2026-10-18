@@ -4,7 +4,7 @@ All records are generated offline. Names are fictional; error messages are stati
 
 ## Generate
 
-From the repository root, after installing `backend/requirements.txt`:
+From the repository root, after installing `backend/requirements-dev.txt`:
 
 ```bash
 .venv/bin/python scripts/generate_synthetic_data.py \

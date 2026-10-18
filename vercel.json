@@ -11,7 +11,11 @@
       "root": "backend/",
       "framework": "fastapi",
       "entrypoint": "index:app",
-      "installCommand": "pip install -r requirements.txt"
+      "functions": {
+        "index.py": {
+          "excludeFiles": "{tests/**,__pycache__/**,**/__pycache__/**,.pytest_cache/**,.ruff_cache/**,.venv/**,*.db,*.db-*,*.sqlite,*.sqlite3,requirements-dev.txt,pytest.ini}"
+        }
+      }
     }
   },
   "rewrites": [

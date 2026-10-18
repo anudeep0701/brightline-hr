@@ -6,7 +6,7 @@ Run `npm run dev` from the repository root. The root package has no npm dependen
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r backend/requirements.txt
+.venv/bin/python -m pip install -r backend/requirements-dev.txt
 npm --prefix frontend ci
 ```
 

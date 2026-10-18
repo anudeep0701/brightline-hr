@@ -1,5 +1,16 @@
 # Verification record
 
+## Python deployment bundle reduction — 2026-10-18
+
+- Split pinned runtime requirements from local test, synthetic-generation, lint and server tooling. Removed the stale combined lock/range manifest; moved unchanged pytest configuration to `backend/pytest.ini` to avoid a competing dependency-free project manifest. CI and local setup use `requirements-dev.txt`.
+- Removed the backend custom install command. Service-scoped function exclusions omit tests, caches, local environments and SQLite artifacts. Domain source, migrations, API contracts, service routing and frontend build settings are unchanged.
+- On Linux x86-64 / Python 3.12, a clean production-only installation passed `pip check`, startup, database access, Polars health evaluation, workspace authentication, tenant isolation, external ingestion/deduplication, CSV preview/import, AI fallback, operator refresh and cron authorization. No pytest, Faker, NumPy, Pygments, Ruff or Uvicorn was installed in that runtime.
+- The official `@vercel/python` 25.1.3 builder ran locally in a disposable Linux container, using the existing exported app and production requirements. It measured **232.30 MiB before optimization** and **114.13 MiB for the optimized function**. This is a local packaging result, not a hosted size guarantee. Vercel may install selected public dependencies at cold start; that cost remains to be measured on the host.
+- Largest installed runtime packages before optimization: Polars native runtime **171.85 MiB**, psycopg binary **18.99 MiB**, SQLAlchemy **17.29 MiB**, OpenAI **6.14 MiB**, Pydantic core **4.96 MiB** and Polars Python package **4.09 MiB**. Polars is used by live metric aggregation; OpenTelemetry API is a FastAPI dependency. Neither was removed.
+- **312 backend**, **35 frontend** and **14 launcher/deployment tests passed**. Ruff F/I, frontend lint, TypeScript, isolated production Next.js build, Vercel configuration schema and whitespace checks passed. One upstream Starlette/httpx deprecation warning remains.
+- Real HTTP smoke passed with **16,870 synthetic events**, covering all four health states, incidents/recovery, ingestion, uploads, auth and fallback. A separate same-origin gateway check against the production frontend build passed frontend/backend routing, probes/docs, workspace authorization, tenant boundaries, external ingestion/idempotency, evaluation, AI fallback and cron authorization.
+- Tracked-path and credential-pattern audits found no secrets or local credential databases; only intentional invalid-URI fixtures matched. No real environment file, hosted database or OpenAI API was accessed. Git push and hosted deployment results are reported separately.
+
 ## Vercel Hobby refresh adaptation — 2026-10-18
 
 The committed Hobby deployment contains no scheduled cron, including no daily job. Workspace operators use the existing **Evaluate now** action and `POST /api/evaluate`. The backend cron endpoint, secret checks, locks, idempotency, tenant evaluation and health thresholds are unchanged. Production settings still require `CRON_SECRET`; it remains server-only. Intended enterprise evaluation cadence remains approximately five minutes with a capable scheduler.

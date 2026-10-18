@@ -51,7 +51,13 @@ Push the repository to your Git provider and import it **once** into Vercel. Con
 | Service | Root | Framework | Install | Build / entrypoint |
 | --- | --- | --- | --- | --- |
 | frontend | `frontend/` | Next.js | `npm ci` | `npm run build` |
-| backend | `backend/` | FastAPI | `pip install -r requirements.txt` | `index:app`; framework-managed Python build |
+| backend | `backend/` | FastAPI | Automatic; `requirements.txt` | `index:app`; framework-managed Python build |
+
+Do not add a backend install override in Vercel or `vercel.json`: custom Python installation disables Vercel's dependency optimization. `backend/requirements.txt` pins the runtime dependencies; `backend/requirements-dev.txt` adds local servers, tests, lint and synthetic generation. Install the latter for local development. The previous combined lock was replaced by these two pinned files. Pytest settings moved to `backend/pytest.ini` so an empty project manifest cannot take precedence over requirements discovery. The Python version remains pinned in `.python-version`.
+
+The backend function excludes tests, caches, local environments and SQLite files through service-scoped `functions.excludeFiles`. Frontend assets, repository documentation and synthetic datasets are outside the backend service root. Runtime application source and migrations remain available. Polars is retained for request-time metric aggregation; NumPy, Faker, pytest and Pygments are local tooling only. OpenTelemetry's API package remains because the pinned FastAPI version requires it.
+
+The Linux runtime still exceeds 225 MiB before packaging, mainly because of Polars. Automatic installation lets Vercel package an optimized function and install selected public dependencies at cold start. A local build with the official Python builder produced a 114.13 MiB function from a 232.30 MiB pre-optimization bundle. This adds a cold-start dependency download and initialization cost; verify first-request latency in the hosted deployment. Do not restore a custom install command to work around it. See [Vercel's Python bundling documentation](https://vercel.com/docs/functions/runtimes/python#controlling-what-gets-bundled).
 
 There is no nested backend `vercel.json`, legacy `builds` array, external backend URL rewrite, custom ASGI wrapper or Next.js API proxy. The Python domain remains in `backend/app`.
 

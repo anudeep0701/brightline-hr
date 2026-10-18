@@ -36,8 +36,28 @@ test("one root config owns independent framework builds and the existing Python 
   assert.equal(config.services.backend.root, "backend/");
   assert.equal(config.services.backend.framework, "fastapi");
   assert.equal(config.services.backend.entrypoint, "index:app");
-  assert.equal(config.services.backend.installCommand, "pip install -r requirements.txt");
+  assert.equal(Object.hasOwn(config.services.backend, "installCommand"), false);
   assert.equal(existsSync(new URL("../../backend/vercel.json", import.meta.url)), false);
   for (const key of ["builds", "framework", "buildCommand", "installCommand", "outputDirectory"])
     assert.equal(Object.hasOwn(config, key), false, key);
+});
+
+test("Python deployment installs runtime dependencies without local tooling", () => {
+  const runtime = readFileSync(new URL("../../backend/requirements.txt", import.meta.url), "utf8");
+  const development = readFileSync(new URL("../../backend/requirements-dev.txt", import.meta.url), "utf8");
+  for (const name of ["fastapi", "polars", "SQLAlchemy", "psycopg", "openai", "opentelemetry-api"])
+    assert.match(runtime, new RegExp(`^${name}==`, "mi"));
+  for (const name of ["pytest", "Faker", "numpy", "Pygments", "ruff", "uvicorn"]){
+    assert.doesNotMatch(runtime, new RegExp(`^${name}==`, "mi"));
+    assert.match(development, new RegExp(`^${name}==`, "mi"));
+  }
+  assert.match(development, /^-r requirements\.txt$/m);
+  // A dependency-free project manifest would override automatic requirements discovery.
+  assert.equal(existsSync(new URL("../../backend/pyproject.toml", import.meta.url)), false);
+  assert.equal(existsSync(new URL("../../backend/pytest.ini", import.meta.url)), true);
+  assert.equal(existsSync(new URL("../../backend/requirements.in", import.meta.url)), false);
+  const excluded = config.services.backend.functions["index.py"].excludeFiles;
+  for (const pattern of ["tests/**", "**/__pycache__/**", ".venv/**", "*.db", "requirements-dev.txt"])
+    assert.ok(excluded.includes(pattern), pattern);
+  assert.ok(!excluded.includes("app/**"));
 });

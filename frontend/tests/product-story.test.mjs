@@ -436,3 +436,53 @@ test("production-hosted demo still labels synthetic outcomes and offers scenario
   assert.match(html, /Explore demo scenario/);
   assert.match(html, /Demo outcomes are not customer ROI/);
 });
+
+test("opted-in demo upload keeps preview and confirmation with bounded batch guidance", () => {
+  const { DemoAccessContext, DemoImportContext } = load(
+    path.join(src, "lib/demo-context.ts"),
+  );
+  resource = {
+    data: {
+      workspace: { ...workspace, can_switch_tenants: false },
+      sources: { items: [] },
+    },
+    reload() {},
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(
+      DemoAccessContext.Provider,
+      { value: true },
+      React.createElement(
+        DemoImportContext.Provider,
+        { value: true },
+        React.createElement(DataSources),
+      ),
+    ),
+  );
+  assert.match(html, /Validate file/);
+  assert.match(html, /3,000/);
+  assert.match(html, /tagged/);
+  assert.doesNotMatch(html, /shared demo cannot accept uploads/);
+});
+
+test("demo refresh distinguishes synthetic generation from evaluating existing traffic", () => {
+  const { DemoAccessContext } = load(path.join(src, "lib/demo-context.ts"));
+  const html = renderToStaticMarkup(
+    React.createElement(
+      DemoAccessContext.Provider,
+      { value: true },
+      React.createElement(DemoGuide),
+    ),
+  );
+  assert.match(html, /Refresh demo data/);
+  assert.match(html, /Evaluate now/);
+  assert.match(html, /evaluates existing traffic/);
+  assert.doesNotMatch(html, /scripts\/run_demo/);
+});
+
+test("operational text has readable defaults and visible keyboard focus", () => {
+  const css = readFileSync(path.join(src, "app/globals.css"), "utf8");
+  assert.match(css, /--text-xs: 0\.875rem/);
+  assert.match(css, /--text-sm: 1rem/);
+  assert.match(css, /focus-visible/);
+});

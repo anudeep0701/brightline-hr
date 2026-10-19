@@ -106,7 +106,7 @@ export default function DetailPage({
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-right">
-                <p className="mb-1 text-[10px] uppercase text-slate-500">
+                <p className="mb-1 text-[12px] uppercase text-slate-500">
                   Current evidence
                 </p>
                 <StatusBadge
@@ -230,7 +230,7 @@ export default function DetailPage({
                     Observed {s.observed_status} · Reason {s.reason_code}
                   </p>
                   <p>Policy {s.evidence.policy_version}</p>
-                  <p className="break-all font-mono text-[10px]">
+                  <p className="break-all font-mono text-[12px]">
                     Snapshot {s.id}
                   </p>
                 </div>
@@ -342,7 +342,7 @@ export default function DetailPage({
                 </span>
               </div>
               <History snapshots={data.history} />
-              <p className="mt-2 text-[11px] text-slate-500">
+              <p className="mt-2 text-[13px] text-slate-500">
                 Oldest → newest · Green healthy / Amber degraded / Red unhealthy
                 / Gray unknown
               </p>
@@ -354,7 +354,7 @@ export default function DetailPage({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={previous} />
-                      <ArrowRight size={13} className="text-slate-400" />
+                      <ArrowRight size={13} className="text-slate-500" />
                       <StatusBadge status={snapshot.status} />
                       <span className="ml-auto text-xs text-slate-500">
                         {time(snapshot.bucket)}
@@ -429,7 +429,7 @@ export default function DetailPage({
               >
                 <div>
                   <span
-                    className={`rounded border px-2 py-1 text-[11px] font-semibold ${incident.resolved_at ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}
+                    className={`rounded border px-2 py-1 text-[13px] font-semibold ${incident.resolved_at ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}
                   >
                     {incident.resolved_at ? "Resolved" : "Open"}
                   </span>

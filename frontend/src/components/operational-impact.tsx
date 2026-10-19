@@ -64,11 +64,11 @@ export function OperationalImpact({
           <div key={label} className="border-l-2 border-teal/20 pl-3">
             <dt className="text-xs font-medium text-slate-600">{label}</dt>
             <dd className="mt-2 text-xl font-semibold tabular-nums">{value}</dd>
-            <p className="mt-1 text-[11px] leading-4 text-slate-500">{hint}</p>
+            <p className="mt-1 text-[13px] leading-4 text-slate-500">{hint}</p>
           </div>
         ))}
       </dl>
-      <p className="mt-4 border-t border-slate-100 pt-3 text-[11px] leading-5 text-slate-500">
+      <p className="mt-4 border-t border-slate-100 pt-3 text-[13px] leading-5 text-slate-500">
         {counts.unknown} integrations have unknown current evidence. At last
         refresh, {impact.stale_or_absent_integrations} had stale or absent
         telemetry or overdue evaluations. Incident duration measures confirmed

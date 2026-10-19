@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveApiGuide } from "@/components/live-api-guide";
 import { UploadCloud } from "lucide-react";
 import { Shell } from "@/components/shell";
-import { useDemoAccess } from "@/lib/demo-context";
+import { useDemoAccess, useDemoImport } from "@/lib/demo-context";
 import { ErrorNotice, LoadingState } from "@/components/async-state";
 import { api, setTenant, time, uploadFile } from "@/lib/api";
 import { ingestionStatus, sourceName, uploadFormat } from "@/lib/onboarding";
@@ -19,6 +19,7 @@ import type {
 
 export default function DataSourcesPage() {
   const demo = useDemoAccess();
+  const demoImport = useDemoImport();
   const [scope, setScope] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<UploadPreview | null>(null);
@@ -134,7 +135,7 @@ export default function DataSourcesPage() {
       if (!current.signal.aborted) setBusy("");
     }
   }
-  const operator = !demo && data?.workspace.role === "operator";
+  const operator = (!demo || demoImport) && data?.workspace.role === "operator";
   const errors = preview?.validation_errors ?? result?.validation_errors ?? [];
   return (
     <Shell
@@ -155,6 +156,15 @@ export default function DataSourcesPage() {
           retained={!!data}
           retry={() => void reload()}
         />
+      )}
+      {demo && (
+        <p className="mb-5 text-sm text-slate-600">
+          Demo telemetry, file imports and Live API events share the same
+          validation and health pipeline.{" "}
+          {demoImport
+            ? "Upload synthetic assessment logs only. Imports are tagged, limited to this workspace and capped at 3,000 records in total; the assessment owner can clear them."
+            : "File import is disabled for this deployment; the owner can enable the scoped demo capability."}
+        </p>
       )}
       {!data && !error && <LoadingState />}
       {data && (
@@ -314,6 +324,12 @@ export default function DataSourcesPage() {
                 Accepted {result.accepted} · Duplicates {result.duplicates} ·
                 Rejected {result.rejected}. Final counts reflect validation at
                 import time.
+                {result.demo_import_batch_id && (
+                  <>
+                    {" "}
+                    Demo batch: <code>{result.demo_import_batch_id}</code>.
+                  </>
+                )}
               </p>
             )}
             {!!errors.length && (

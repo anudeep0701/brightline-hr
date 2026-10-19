@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db.session import get_db
 from app.models.entities import Tenant
-from app.schemas.demo import DemoConfiguration, DemoSession
+from app.schemas.demo import DemoCapabilities, DemoRefresh, DemoSession
+from app.services.demo_data import refresh_demo_data
 
 COOKIE_NAME = "__Host-brightline_demo"
 SESSION_SECONDS = 3600
@@ -131,7 +132,11 @@ def authorize_demo(request, db, settings):
         or re.fullmatch(r"/api/v1/integrations/[^/]+(?:/config)?", path)
     )
     writes = (
-        path in {"/api/evaluate", "/api/v1/refresh"}
+        path in {"/api/evaluate", "/api/v1/refresh", "/api/demo/refresh"}
+        or (
+            settings.demo_allow_file_import
+            and path in {"/api/imports/preview", "/api/imports/commit"}
+        )
         or re.fullmatch(r"/api/integrations/[^/]+/(?:brief|explain|investigate)", path)
         or re.fullmatch(r"/api/v1/integrations/[^/]+/explanation", path)
     )
@@ -146,10 +151,19 @@ def authorize_demo(request, db, settings):
     )
 
 
-@router.get("/api/demo/session", response_model=DemoConfiguration)
+@router.get(
+    "/api/demo/session",
+    response_model=DemoCapabilities,
+    response_model_exclude_defaults=True,
+)
 def demo_configuration(response: Response):
     response.headers["Cache-Control"] = "no-store"
-    return {"demo_mode": get_settings().demo_mode}
+    settings = get_settings()
+    return {
+        "demo_mode": settings.demo_mode,
+        "demo_allow_file_import": settings.demo_mode
+        and settings.demo_allow_file_import,
+    }
 
 
 @router.post("/api/demo/session", response_model=DemoSession)
@@ -159,6 +173,7 @@ def create_demo_session(
     settings = get_settings()
     tenant = demo_tenant(db, settings)
     same_origin(request, settings)
+    refresh_demo_data(db, settings)
     # No tenant selector, workspace token, credentials table write or secret in JSON.
     cookie, expires_at = sign_session(tenant.id, settings)
     response.set_cookie(
@@ -177,3 +192,10 @@ def create_demo_session(
         "tenant_name": tenant.name,
         "expires_at": expires_at,
     }
+
+
+@router.post("/api/demo/refresh", response_model=DemoRefresh)
+def refresh_demo(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    authorize_demo(request, db, settings)
+    return refresh_demo_data(db, settings, force=True)

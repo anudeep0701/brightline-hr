@@ -118,6 +118,7 @@ The local Node launchers load root `.env`, then `.env.local`; nonempty exported 
 | `PGPASSWORD` | Used only by the optional local PostgreSQL Docker Compose setup. Not required by the deployed application. |
 | `DEMO_MODE` | Default `false`. Enable explicitly only for a public synthetic assessment. |
 | `DEMO_TENANT_SLUG` | Existing synthetic tenant ID, usually `brightline`; required when demo mode is enabled. |
+| `DEMO_ALLOW_FILE_IMPORT` | Default `false`; enable bounded, previewed imports only in the public synthetic demo. |
 | `DEMO_SESSION_SECRET` | Independent backend-only random signing value, 32+ characters; required when demo mode is enabled. Never a public variable. |
 
 Environment files, keys and local databases are ignored by Git. The root development launcher removes backend credentials from the frontend process.
@@ -148,7 +149,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm --prefix frontend run dev
 
 Replay uses temporary SQLite. Focused choices: `healthy`, `authentication-outage`, `latency-degradation`, `complete-outage`, `recovery`. AI is disabled unless `--enable-ai` is supplied with an exported key. Clear workspace access if its token belongs to another database.
 
-Regenerate before presenting: demo time does not advance and freshness expires. Sustained degradation can finish UNHEALTHY; earlier transitions remain visible. See [the four-minute walkthrough](docs/PRODUCT_WALKTHROUGH.md).
+Local seeded data ages normally; regenerate before presenting. Hosted demo sessions refill stale synthetic feeds with bounded current-time events through normal ingestion and evaluation. **Refresh demo data** explicitly repeats that flow; **Evaluate now** only evaluates existing telemetry. Deliberately stale scenarios and imported/live evidence are preserved. Sustained degradation can finish UNHEALTHY; earlier transitions remain visible. See [the four-minute walkthrough](docs/PRODUCT_WALKTHROUGH.md).
 
 ## Ingestion and evaluation
 
@@ -237,7 +238,7 @@ Vercel discovers `backend/requirements.txt`, which pins only runtime dependencie
 
 Set project variables `DATABASE_URL`, `APP_ENV=production` and a 32+ character `CRON_SECRET`. Optional AI uses `OPENAI_API_KEY` and `OPENAI_MODEL`. Leave `NEXT_PUBLIC_API_BASE_URL` and `CORS_ALLOWED_ORIGINS` unset for same-origin production. Project variables are shared by services; only Python code consumes backend credentials, and no secret uses a `NEXT_PUBLIC_` name.
 
-For the public synthetic assessment only, also set `DEMO_MODE=true`, `DEMO_TENANT_SLUG=brightline` and an independent random `DEMO_SESSION_SECRET` of at least 32 characters. The tenant must already exist. Demo sessions expire after one hour and renew while the page is visible. They allow observation, evaluation and advisory AI; they cannot upload telemetry, change policy or administer credentials. Use a dedicated synthetic database, never a customer database. `.env.example` contains blank placeholders; production customer deployments should leave demo mode disabled.
+For the public synthetic assessment only, also set `DEMO_MODE=true`, `DEMO_TENANT_SLUG=brightline` and an independent random `DEMO_SESSION_SECRET` of at least 32 characters. The tenant must already exist. Demo sessions expire after one hour and renew while the page is visible. They allow observation, evaluation and advisory AI; they cannot change policy or administer credentials. Set `DEMO_ALLOW_FILE_IMPORT=true` to permit previewed, tenant-scoped assessment uploads. Use a dedicated synthetic database, never a customer database. `.env.example` contains blank placeholders; production customer deployments should leave demo mode disabled.
 
 `/api/*`, probes, `/docs`, `/redoc` and `/openapi.json` route to FastAPI without stripping prefixes. Other paths, including Next.js assets, route to the frontend. Existing workspace and ingestion bearer authentication still applies. The frontend makes no proxy API handlers and contains no Python business logic.
 
@@ -254,3 +255,5 @@ Operational impact reports confirmed incident openings/resolutions, mean confirm
 ## Production next steps
 
 A pilot should connect a staging exporter, run in production shadow mode, calibrate policies with Ops, and measure those outcomes before operational adoption. Before go-live, establish database roles, backup/restore, retention, scheduler monitoring, rate controls and load limits. Add alert delivery or approved remediation only after the detection and recovery policies have earned operator trust. See [business measurement and rollout](docs/BUSINESS_VALUE.md).
+
+Demo imports are tagged by server-generated batch ID and capped at 3,000 stored records. The owner can remove only those tagged imports with `.venv/bin/python scripts/demo_cleanup.py --confirm` in a trusted terminal with `DATABASE_URL`, `DEMO_MODE=true` and `DEMO_TENANT_SLUG` configured. Historical decisions remain for audit; cleanup does not rewind incidents. Shared demo evidence is public: upload synthetic assessment logs only.

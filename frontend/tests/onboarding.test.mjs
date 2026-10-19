@@ -104,3 +104,34 @@ test("failed upload exposes safe server error without assuming import success", 
     globalThis.fetch = original;
   }
 });
+
+test("demo import uses same-origin session protection and returns server batch provenance", async () => {
+  const { setDemoAccess } = await moduleAt("../src/lib/api.ts");
+  const original = globalThis.fetch;
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.credentials, "include");
+    assert.equal(options.headers["X-Demo-Request"], "1");
+    assert.equal(options.headers.Authorization, undefined);
+    return {
+      ok: true,
+      headers: {
+        get: (name) =>
+          name === "X-Demo-Import-Batch" ? "demo-test-batch" : null,
+      },
+      json: async () => ({ accepted: 1, rejected: 0, duplicates: 0 }),
+    };
+  };
+  try {
+    setDemoAccess(true);
+    const result = await uploadFile(
+      new File(["[]"], "pilot.json"),
+      "json",
+      new AbortController().signal,
+      "digest",
+    );
+    assert.equal(result.demo_import_batch_id, "demo-test-batch");
+  } finally {
+    setDemoAccess(false);
+    globalThis.fetch = original;
+  }
+});

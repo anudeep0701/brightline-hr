@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     cron_secret: str = ""
     cors_allowed_origins: str = ""
     demo_mode: bool = False
+    demo_allow_file_import: bool = False
     demo_tenant_slug: str = ""
     demo_session_secret: str = Field(default="", repr=False)
 

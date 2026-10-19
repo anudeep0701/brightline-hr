@@ -36,7 +36,7 @@ export function Shell({
           </span>
           brightline<span className="text-xs text-teal">HR</span>
         </Link>
-        <div className="mt-10 hidden text-[10px] font-bold uppercase tracking-[.2em] text-slate-400 lg:block">
+        <div className="mt-10 hidden text-[12px] font-bold uppercase tracking-[.2em] text-slate-500 lg:block">
           Operations workspace
         </div>
         <Link

@@ -3,13 +3,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, setDemoAccess } from "@/lib/api";
 import { LoadingState } from "@/components/async-state";
-import { DemoAccessContext } from "@/lib/demo-context";
+import { DemoAccessContext, DemoImportContext } from "@/lib/demo-context";
 
 export function DemoAccess({ children }: { children: ReactNode }) {
   const [state, setState] = useState<
     "loading" | "demo" | "workspace" | "error"
   >("loading");
   const [attempt, setAttempt] = useState(0);
+  const [allowImport, setAllowImport] = useState(false);
   useEffect(() => {
     let disposed = false;
     let renewal: ReturnType<typeof setInterval> | undefined;
@@ -17,11 +18,10 @@ export function DemoAccess({ children }: { children: ReactNode }) {
     async function open() {
       setState("loading");
       try {
-        const config = await api<{ demo_mode: boolean }>(
-          "/api/demo/session",
-          "GET",
-          controller.signal,
-        );
+        const config = await api<{
+          demo_mode: boolean;
+          demo_allow_file_import?: boolean;
+        }>("/api/demo/session", "GET", controller.signal);
         if (!config.demo_mode) {
           setDemoAccess(false);
           if (!disposed) setState("workspace");
@@ -30,6 +30,7 @@ export function DemoAccess({ children }: { children: ReactNode }) {
         await api("/api/demo/session", "POST", controller.signal);
         if (disposed) return;
         setDemoAccess(true);
+        setAllowImport(!!config.demo_allow_file_import);
         setState("demo");
         // Renew while visible. Every issued cookie still expires in one hour.
         renewal = setInterval(
@@ -80,7 +81,9 @@ export function DemoAccess({ children }: { children: ReactNode }) {
     );
   return (
     <DemoAccessContext.Provider value={state === "demo"}>
-      {children}
+      <DemoImportContext.Provider value={state === "demo" && allowImport}>
+        {children}
+      </DemoImportContext.Provider>
     </DemoAccessContext.Provider>
   );
 }

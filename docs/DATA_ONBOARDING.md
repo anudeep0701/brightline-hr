@@ -4,7 +4,7 @@
 
 **Export logs → upload CSV/JSON → validate → evaluate health.**
 
-1. Ask your Brightline administrator to register your tenant and integrations, then issue an **operator workspace token**. Connect that token using **Workspace access**. PostgreSQL workspaces always require authentication; only the local SQLite synthetic demo permits credential-free access.
+1. Ask your Brightline administrator to register your tenant and integrations, then issue an **operator workspace token**. Connect that token using **Workspace access**. Production workspaces require authentication. The public synthetic assessment instead opens an automatic fixed-tenant demo session; its owner may explicitly enable the same preview/confirmation workflow with `DEMO_ALLOW_FILE_IMPORT=true`. Upload only synthetic assessment data to that shared public workspace.
 2. Open **Data sources**. Choose a UTF-8 CSV, JSON, NDJSON or JSONL file, with at most **1,000 records and 2 MiB**. Export these required fields:
 
    ```csv

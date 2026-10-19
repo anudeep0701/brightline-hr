@@ -2,6 +2,10 @@
 @theme {
   --color-ink: #172f32;
   --color-teal: #087f72;
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5;
 }
 :root {
   color-scheme: light;
@@ -19,7 +23,7 @@ body {
     @apply inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-teal disabled:cursor-wait disabled:opacity-50;
   }
   .eyebrow {
-    @apply text-[10px] font-bold uppercase tracking-[.18em] text-slate-500;
+    @apply text-[12px] font-bold uppercase tracking-[.18em] text-slate-500;
   }
   .muted {
     @apply text-sm leading-6 text-slate-500;
@@ -30,7 +34,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #14b8a6;
+  outline: 3px solid #087f72;
   outline-offset: 3px;
 }
 @layer components {

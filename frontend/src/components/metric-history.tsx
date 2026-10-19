@@ -112,7 +112,7 @@ export function MetricHistory({ history }: { history: Snapshot[] }) {
                   No measurements in this history.
                 </p>
               )}
-              <div className="flex justify-between text-[10px] text-slate-500">
+              <div className="flex justify-between text-[12px] text-slate-500">
                 <span>{time(ordered[0]?.bucket)}</span>
                 <span>{time(ordered.at(-1)?.bucket)}</span>
               </div>

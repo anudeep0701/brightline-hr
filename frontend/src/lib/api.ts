@@ -144,6 +144,7 @@ export async function uploadFile<T>(
     cache: "no-store",
     signal: AbortSignal.any([signal, AbortSignal.timeout(30000)]),
     headers: {
+      ...(demoAccess ? { "X-Demo-Request": "1" } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       "Content-Type":
         format === "csv"
@@ -164,5 +165,10 @@ export async function uploadFile<T>(
         ? body.detail
         : "File validation/import failed. No success is assumed; check the results or retry safely.",
     );
-  return body as T;
+  return {
+    ...body,
+    ...(response.headers?.get("X-Demo-Import-Batch")
+      ? { demo_import_batch_id: response.headers.get("X-Demo-Import-Batch") }
+      : {}),
+  } as T;
 }

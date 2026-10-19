@@ -48,7 +48,7 @@ flowchart LR
     AI -->|Advisory result / fallback| API
 ```
 
-One Vercel Services project builds Next.js and FastAPI independently, routing `/api/*` to Python and other application paths to Next.js. Services is currently beta; hosted preview verification is a release gate. Hashed workspace reader/operator tokens and ingestion-only keys scope access to one tenant. Queries enforce isolation, supplemented by database constraints. SQLite is demo/test-only.
+One Vercel Services project builds Next.js and FastAPI independently, routing `/api/*` to Python and other application paths to Next.js. Services is currently beta; hosted preview verification is a release gate. Hashed workspace reader/operator tokens and ingestion-only keys scope access to one tenant. Queries enforce isolation, supplemented by database constraints. SQLite is demo/test-only. The public assessment uses an explicit, fixed-tenant demo session. Only this mode can refill stale synthetic telemetry through normal ingestion; real deployments never generate telemetry on entry. Previewed demo imports require a separate server-side opt-in and are bounded and tagged for owner cleanup.
 
 # AI Usage
 

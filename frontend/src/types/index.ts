@@ -183,6 +183,7 @@ export type UploadPreview = {
   file_digest: string;
 };
 export type ImportResult = {
+  demo_import_batch_id?: string;
   accepted: number;
   rejected: number;
   duplicates: number;

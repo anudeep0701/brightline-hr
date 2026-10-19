@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.auth import Principal, operator, principal
@@ -49,6 +49,7 @@ async def preview(
 @router.post("/api/imports/commit", response_model=IngestResult, openapi_extra=BODY)
 async def commit(
     request: Request,
+    response: Response,
     user: Operator,
     db: Db,
     format: str = Query(...),
@@ -62,7 +63,18 @@ async def commit(
     data = await read_upload(
         request.stream(), format, request.headers.get("content-type", "")
     )
-    return commit_upload(db, tenant, data, format, x_confirm_import, x_preview_digest)
+    result = commit_upload(
+        db,
+        tenant,
+        data,
+        format,
+        x_confirm_import,
+        x_preview_digest,
+        demo_import=user.demo,
+    )
+    if user.demo:
+        response.headers["X-Demo-Import-Batch"] = "demo-" + x_preview_digest[:32]
+    return result
 
 
 @router.get("/api/data-sources", response_model=DataSourcesOut)

@@ -65,6 +65,7 @@ test("frontend child receives public configuration without backend secrets", () 
     DEMO_MODE: "true",
     DEMO_TENANT_SLUG: "brightline",
     DEMO_SESSION_SECRET: "private-demo-signing",
+    DEMO_ALLOW_FILE_IMPORT: "true",
     PATH: "path",
   };
   const browser = frontendEnvironment(environment);
@@ -77,6 +78,7 @@ test("frontend child receives public configuration without backend secrets", () 
     "DEMO_MODE",
     "DEMO_TENANT_SLUG",
     "DEMO_SESSION_SECRET",
+    "DEMO_ALLOW_FILE_IMPORT",
   ]) {
     assert.equal(Object.hasOwn(browser, name), false);
     assert.equal(Object.hasOwn(environment, name), true);

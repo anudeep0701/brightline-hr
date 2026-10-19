@@ -5,8 +5,12 @@ import hashlib
 import io
 from itertools import islice
 
+from sqlalchemy import func, select
+
 from app.ingestion.files import stream_records
 from app.ingestion.service import ingest
+from app.models.entities import Tenant
+from app.services.demo_data import MAX_DEMO_IMPORTS, demo_import_query
 from app.services.errors import ServiceError
 
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024
@@ -74,7 +78,9 @@ def preview_upload(db, tenant_id, data, file_format):
     return {**report, "file_digest": hashlib.sha256(data).hexdigest()}
 
 
-def commit_upload(db, tenant_id, data, file_format, confirmed, digest):
+def commit_upload(
+    db, tenant_id, data, file_format, confirmed, digest, *, demo_import=False
+):
     if confirmed != "true":
         raise ServiceError(
             422,
@@ -87,6 +93,18 @@ def commit_upload(db, tenant_id, data, file_format, confirmed, digest):
             "file_changed",
             "File changed after preview; validate the selected file again",
         )
+    if demo_import:
+        db.scalar(select(Tenant).where(Tenant.id == tenant_id).with_for_update())
+        preview = preview_upload(db, tenant_id, data, file_format)
+        stored = db.scalar(
+            select(func.count()).select_from(demo_import_query(tenant_id).subquery())
+        )
+        if stored + preview["valid_records"] > MAX_DEMO_IMPORTS:
+            raise ServiceError(
+                413,
+                "demo_import_capacity",
+                "The shared demo allows 3,000 imported records. Ask the assessment owner to clear demo imports.",
+            )
     return ingest(
         db,
         tenant_id,
@@ -94,4 +112,5 @@ def commit_upload(db, tenant_id, data, file_format, confirmed, digest):
         allow_historical=True,
         strict_authorization=True,
         source_type="FILE_IMPORT",
+        import_batch_id="demo-" + digest[:32] if demo_import else None,
     )

@@ -19,6 +19,7 @@ const configNames = [
   "NEXT_PUBLIC_API_BASE_URL",
   "PGPASSWORD",
   "DEMO_MODE",
+  "DEMO_ALLOW_FILE_IMPORT",
   "DEMO_TENANT_SLUG",
   "DEMO_SESSION_SECRET",
 ];
@@ -88,6 +89,7 @@ export function frontendEnvironment(environment) {
     "CRON_SECRET",
     "PGPASSWORD",
     "DEMO_MODE",
+    "DEMO_ALLOW_FILE_IMPORT",
     "DEMO_TENANT_SLUG",
     "DEMO_SESSION_SECRET",
   ]) {

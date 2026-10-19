@@ -23,6 +23,9 @@ def ingest(
     strict_authorization=False,
     preview=False,
     source_type="LIVE_API",
+    import_batch_id=None,
+    commit=True,
+    bulk=False,
 ):
     """One transaction per batch; invalid records use savepoints and never abort peers.
 
@@ -154,9 +157,12 @@ def ingest(
             can_import=not permission_failure and result.accepted > 0,
         )
 
+    pending = []
     for index, event, integration in validated:
         raw = event.model_dump(mode="json")
         raw["tenant_id"] = tenant_id
+        if import_batch_id is not None:
+            raw["demo_import_batch_id"] = import_batch_id
         values = dict(
             tenant_id=tenant_id,
             event_id=event.event_id,
@@ -174,6 +180,25 @@ def ingest(
             raw_event=raw,
             source_type=source_type,
         )
+        pending.append((index, values))
+    if bulk and pending:
+        try:
+            with session.begin_nested():
+                statement = (
+                    insert(RequestEvent)
+                    .values([row for _, row in pending])
+                    .on_conflict_do_nothing(index_elements=["tenant_id", "event_id"])
+                    .returning(RequestEvent.event_id)
+                )
+                stored = session.execute(statement).scalars().all()
+            result.accepted += len(stored)
+            result.duplicates += len(pending) - len(stored)
+            pending = []
+        except (IntegrityError, DataError):
+            # The savepoint rolls the whole statement back. Preserve the normal
+            # per-record rejection contract if one database constraint failed.
+            pass
+    for index, values in pending:
         try:
             with session.begin_nested():
                 statement = (
@@ -194,5 +219,6 @@ def ingest(
         raise IngestionBatchError(
             422, "invalid_events", "No valid request events in this batch", result
         )
-    session.commit()
+    if commit:
+        session.commit()
     return result.model_dump()

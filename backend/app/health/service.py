@@ -36,7 +36,7 @@ def snapshot_context(snapshot):
     )
 
 
-def refresh(session, tenant_id, now=None):
+def refresh(session, tenant_id, now=None, *, commit=True):
     now = utc(now or datetime.now(timezone.utc))
     session.scalar(select(Tenant).where(Tenant.id == tenant_id).with_for_update())
     created = 0
@@ -110,5 +110,6 @@ def refresh(session, tenant_id, now=None):
         session.flush()
         advance(session, snapshot)
         created += 1
-    session.commit()
+    if commit:
+        session.commit()
     return dict(created=created, bucket=bucket_for(now).isoformat())

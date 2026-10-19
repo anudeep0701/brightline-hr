@@ -47,7 +47,7 @@ function Audit({ audit }: { audit?: AIAudit | null }) {
         {!!audit.selected_fact_ids?.length && (
           <p>Selected facts: {audit.selected_fact_ids.join(", ")}</p>
         )}
-        <p className="break-all font-mono text-[10px]">
+        <p className="break-all font-mono text-[12px]">
           Evidence SHA-256 {audit.evidence_digest}
         </p>
       </div>

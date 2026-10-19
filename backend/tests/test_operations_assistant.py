@@ -91,7 +91,9 @@ def test_successful_scopes_citations_and_no_mutations(
     assert result["audit"]["model"] == "gpt-6-luna"
     assert result["audit"]["provider_request_id"] == "req_offline_assistant"
     assert result["evidence"]
-    assert result["answer"] == " ".join(item["value"] for item in result["evidence"])
+    assert result["answer"] == "\n\n".join(
+        item["value"] for item in result["answer_evidence"]
+    )
     assert all(
         item["integration_id"] in {None, "payroll"} for item in result["evidence"]
     )
@@ -186,7 +188,7 @@ def test_missing_key_and_insufficient_evidence_are_explicit(client, monkeypatch)
     result = response.json()
     assert result["availability"] == "FALLBACK"
     assert result["audit"]["failure_category"] == "MISSING_API_KEY"
-    assert "NO_TELEMETRY" in result["answer"]
+    assert "no telemetry" in result["answer"].lower()
     assert result["confidence"] == "low"
     assert any("insufficient" in text for text in result["limitations"])
 
@@ -453,7 +455,9 @@ def test_actual_sdk_parses_assistant_plan_without_tools(client, monkeypatch):
     result = ask(client).json()
     assert result["availability"] == "LIVE"
     assert result["audit"]["provider_request_id"] == "req_offline_sdk"
-    assert result["answer"] == result["evidence"][0]["value"]
+    assert result["answer"] == "\n\n".join(
+        item["value"] for item in result["answer_evidence"]
+    )
 
 
 def test_foreign_incident_cannot_be_selected_even_with_same_integration_id(

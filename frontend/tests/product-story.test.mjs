@@ -145,9 +145,11 @@ test("populated dashboard leads with attention, then measurable outcomes and sec
   assert.ok(html.indexOf("3 integrations need") === -1);
   assert.match(html, /2 integrations need attention/);
   assert.ok(
-    html.indexOf('id="attention-title"') < html.indexOf("Fleet at a glance"),
+    html.indexOf("Fleet at a glance") < html.indexOf('id="attention-title"') &&
+      html.indexOf('id="attention-title"') <
+        html.indexOf("Demo / simulated operational impact"),
   );
-  assert.match(html, /Investigate \/ AI brief/);
+  assert.match(html, /Investigate/);
   assert.match(html, /Scope: Brightline HR/);
   assert.match(html, /Demo \/ simulated operational impact/);
   assert.match(html, /15.0 min/);
@@ -283,7 +285,7 @@ test("live setup exposes scoped contract, copyable placeholders and a verificati
 });
 test("loading and authentication errors offer useful feedback without showing empty healthy counts", () => {
   resource = { data: null, error: "", fetching: true, reload() {} };
-  assert.match(render(Dashboard), /Loading integration telemetry/);
+  assert.match(render(Dashboard), /Loading health data/);
   resource.error = "Bearer token required";
   const html = render(Dashboard);
   assert.match(html, /Workspace access/);
@@ -653,4 +655,154 @@ test("assistant treats telemetry content as text and escapes markup", () => {
   });
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));
+});
+
+const FleetPage = load(path.join(src, "app/integrations/page.tsx")).default;
+const IncidentsPage = load(path.join(src, "app/incidents/page.tsx")).default;
+const AssistantPage = load(path.join(src, "app/assistant/page.tsx")).default;
+
+test("overview gives priorities without embedding the fleet table or AI form", () => {
+  const html = dashboard([row("unhealthy"), row("healthy")]);
+  for (const href of [
+    "/integrations",
+    "/incidents",
+    "/assistant",
+    "/data-sources",
+  ])
+    assert.ok(html.includes(`href="${href}"`));
+  assert.ok(
+    html.includes("Needs attention") && html.includes("Open AI assistant"),
+  );
+  assert.ok(
+    !html.includes("<textarea") && !html.includes('id="integration-list"'),
+  );
+  assert.ok(
+    html.includes("Active incidents") && html.includes("Recovery / resolved"),
+  );
+});
+
+test("integrations owns the filtered fleet and freshness drill-down", () => {
+  dashboard([row("healthy"), row("unknown")]);
+  const html = render(FleetPage);
+  for (const text of [
+    "Search integrations",
+    "Filter by status",
+    "Filter by integration type",
+    "Current evidence",
+    "Telemetry",
+    "Fresh",
+    "Last evaluated",
+  ])
+    assert.ok(html.includes(text), text);
+  assert.ok(html.includes('id="integration-list"'));
+  assert.ok(!html.includes('id="attention-title"'));
+});
+
+test("workspace incidents separate active failures and resolved recovery", () => {
+  dashboard([row("unhealthy", "payroll")]);
+  resource.data.incidentFeed = {
+    total: 2,
+    items: [
+      {
+        id: "open-one",
+        integration_id: "payroll",
+        opened_at: new Date(now - 3600000).toISOString(),
+        recovery_streak: 1,
+        healthy_windows_observed: 1,
+        healthy_windows_required: 2,
+        opening_reason_text: "Sustained latency",
+        recovery_condition: "Two healthy windows",
+      },
+      {
+        id: "resolved-one",
+        integration_id: "payroll",
+        opened_at: new Date(now - 7200000).toISOString(),
+        resolved_at: new Date(now - 3600000).toISOString(),
+        recovery_streak: 2,
+        healthy_windows_observed: 2,
+        healthy_windows_required: 2,
+      },
+    ],
+  };
+  const html = render(IncidentsPage);
+  for (const text of [
+    "Active incidents",
+    "Recovery / resolved",
+    "Confirmed unhealthy",
+    "1h 0m",
+    "1/2 healthy windows",
+    "Sustained latency",
+    "#incident-resolved-one",
+  ])
+    assert.ok(html.includes(text), text);
+  assert.ok(!html.includes("<textarea"));
+});
+
+test("AI assistant page focuses workspace questions without raw fleet telemetry", () => {
+  dashboard([row("healthy")]);
+  const html = render(AssistantPage);
+  assert.ok(
+    html.includes("AI Operations Assistant") && html.includes("<textarea"),
+  );
+  assert.ok(html.includes("What changed in the last hour?"));
+  assert.ok(html.includes("Summarize today’s active incidents."));
+  assert.ok(!html.includes("<table") && !html.includes("Fleet at a glance"));
+});
+
+test("AI default view bounds priorities and evidence with progressive disclosure", () => {
+  const priorities = Array.from({ length: 5 }, (_, i) => ({
+    integration_id: `item-${i}`,
+    name: `Priority ${i}`,
+    status: "UNHEALTHY",
+    reason: "Latency remains above policy.",
+    next_check: "Compare upstream response times.",
+  }));
+  const additional_evidence = [
+    {
+      ...assistantAnswer.evidence[0],
+      id: "extra",
+      label: "Recovery",
+      value: "One of two healthy windows confirmed.",
+    },
+  ];
+  const html = render(AssistantResult, {
+    result: {
+      ...assistantAnswer,
+      summary: "5 unhealthy · 1 needs evidence",
+      intent: "attention",
+      priorities,
+      additional_evidence,
+      methodology: ["Rolling evaluation windows may overlap."],
+    },
+  });
+  assert.ok(html.includes("Priority 2") && !html.includes("Priority 3"));
+  assert.ok(
+    html.includes("First check") && html.includes("Show more evidence (1)"),
+  );
+  assert.ok(
+    html.indexOf("Priority actions") < html.indexOf("Supporting evidence"),
+  );
+  assert.ok(html.indexOf("Supporting evidence") < html.indexOf("Confidence:"));
+  assert.ok(
+    html.indexOf("Limits and AI provenance") <
+      html.indexOf("Rolling evaluation windows"),
+  );
+});
+
+test("full evidence request expands existing bounded evidence without another action", () => {
+  const html = render(AssistantResult, {
+    result: {
+      ...assistantAnswer,
+      intent: "detail",
+      additional_evidence: [
+        {
+          ...assistantAnswer.evidence[0],
+          id: "more",
+          value: "P95 4.2 s; target 1 s",
+        },
+      ],
+    },
+  });
+  assert.ok(html.includes('<details open=""') && html.includes("P95 4.2 s"));
+  assert.ok(html.includes("Inspect evidence"));
 });

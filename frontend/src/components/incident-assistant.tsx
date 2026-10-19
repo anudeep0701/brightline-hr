@@ -69,7 +69,11 @@ function Report({
   report,
   ai,
   audit,
+  driver,
+  recovery,
 }: {
+  driver?: string;
+  recovery?: string;
   report: EnrichmentReport;
   ai: boolean;
   audit?: AIAudit | null;
@@ -81,23 +85,39 @@ function Report({
           ? "AI insight · Advisory"
           : "Deterministic explanation · AI unavailable"}
       </p>
-      <p className="text-sm leading-6">{report.summary}</p>
+      <p className="text-sm leading-7">
+        {driver ??
+          report.summary
+            .split(/(?<=[.!?])\s+/)
+            .slice(0, 2)
+            .join(" ")}
+      </p>
       {ai && (
         <p className="mt-2 text-xs text-slate-500">
           Issue hypothesis: {report.likely_issue_category.replaceAll("_", " ")}{" "}
           · {advisoryConfidence(report.confidence)} advisory confidence
         </p>
       )}
-      <p className="mt-4 text-xs font-semibold">What changed?</p>
-      <p className="mt-1 text-xs leading-6 text-slate-600">
-        {report.what_changed}
-      </p>
       <p className="mt-4 text-xs font-semibold">Suggested investigation</p>
       <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5 text-slate-600">
-        {report.suggested_checks.map((check, i) => (
+        {report.suggested_checks.slice(0, 3).map((check, i) => (
           <li key={i}>{check}</li>
         ))}
       </ol>
+      {recovery && (
+        <p className="mt-3 text-sm leading-6">
+          <span className="font-semibold">Recovery: </span>
+          {recovery}
+        </p>
+      )}
+      <details className="mt-4 border-t border-slate-200 pt-3 text-sm leading-6">
+        <summary className="cursor-pointer font-medium text-teal">
+          Full brief and changes
+        </summary>
+        <p className="mt-3">{report.summary}</p>
+        <h3 className="mt-3 font-semibold">What changed?</h3>
+        <p className="mt-1">{report.what_changed}</p>
+      </details>
       <Audit audit={audit} />
     </div>
   );
@@ -120,6 +140,14 @@ export function IncidentAssistant({
   const cached = detail.enrichment?.audit ? detail.enrichment : null;
   const result = brief ?? cached;
   const snapshot = detail.snapshot;
+  const currentReason =
+    detail.freshness?.current_evidence_status === "UNKNOWN" &&
+    snapshot?.status !== "unknown"
+      ? "Current evidence is stale or insufficient. Verify telemetry and evaluation before relying on recorded health."
+      : (snapshot?.reason_text ??
+        "Evaluate this integration before requesting a brief.");
+  const activeIncident = detail.incidents?.find((item) => !item.resolved_at);
+
   async function request(kind: "brief" | "investigate") {
     controller.current?.abort();
     const current = new AbortController();
@@ -188,6 +216,12 @@ export function IncidentAssistant({
       {result?.report ? (
         <Report
           report={result.report}
+          driver={currentReason}
+          recovery={
+            activeIncident
+              ? `${activeIncident.healthy_windows_observed ?? activeIncident.recovery_streak} of ${activeIncident.healthy_windows_required ?? "the required"} healthy windows confirmed.`
+              : undefined
+          }
           ai={result.source.startsWith("openai:")}
           audit={result.audit}
         />
@@ -196,10 +230,7 @@ export function IncidentAssistant({
           <p className="eyebrow mb-2">
             Deterministic explanation · Available without AI
           </p>
-          <p className="text-sm leading-6">
-            {snapshot?.reason_text ??
-              "Evaluate this integration before requesting a brief."}
-          </p>
+          <p className="text-sm leading-6">{currentReason}</p>
         </div>
       )}
       <div className="mt-5">

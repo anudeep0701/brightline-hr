@@ -127,6 +127,7 @@ def authorize_demo(request, db, settings):
             "/api/health-summary",
             "/api/integrations",
             "/api/data-sources",
+            "/api/incidents",
         }
         or re.fullmatch(r"/api/integrations/[^/]+(?:/(?:metrics|incidents))?", path)
         or re.fullmatch(r"/api/v1/integrations/[^/]+(?:/config)?", path)

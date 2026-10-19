@@ -2,7 +2,7 @@
 
 Brightline HR runs payroll, e-signature, ATS, directory and notification integrations for its customers. Ops often finds out that an integration is broken when a customer opens a support ticket. This project turns request logs into a morning view of what needs attention, why, and whether it is recovering.
 
-The overview prioritizes issues and evidence gaps; integration details explain decisions, investigation and recovery. **AI Operations Assistant** accepts operational questions across the current workspace or a selected integration/incident and shows the supporting evidence. Customers can upload pilot logs or send live events through an authenticated API. Both paths use the same ingestion and health services.
+The overview prioritizes issues and evidence gaps. Integrations provides the filtered fleet; Incidents separates active failures from recovery; Data Sources covers onboarding. Integration details explain the health decision before AI investigation. **AI Operations Assistant** accepts operational questions across the current workspace or a selected integration/incident and shows the supporting evidence. Customers can upload pilot logs or send live events through an authenticated API. Both paths use the same ingestion and health services.
 
 This is an FDE case-study MVP. Its seeded outcomes demonstrate the workflow; they are not production results or customer ROI.
 
@@ -20,7 +20,7 @@ Defaults: 15-minute windows, five-minute cadence, 20-request minimum, 1%/5% erro
 
 See [SOLUTION_DESIGN.md](SOLUTION_DESIGN.md) for architecture trade-offs and [the health policy](docs/HEALTH_ENGINE.md) for exact rules.
 
-Ask **“What needs attention right now?”** on the overview, or **“Has this incident recovered?”** on an integration detail page. The assistant shows citations, suggested read-only checks, confidence and request provenance. It accepts 600-character questions, analyzes at most 12 integrations and an hour of bounded snapshots, and has a best-effort per-worker tenant budget of 10 questions/minute. This is not a distributed quota or a general chatbot. See [AI operations](docs/AI_OPERATIONS.md).
+Open **AI assistant** and ask **“What needs attention right now?”**, or **“Has this incident recovered?”** on an integration detail page. Default answers prioritize up to three issues or checks, explain the actual health driver, and show two to four supporting facts. **Show more evidence** exposes detail; methodology and request provenance stay secondary. It accepts 600-character questions, analyzes at most 12 integrations and an hour of bounded snapshots, and has a best-effort per-worker tenant budget of 10 questions/minute. This is not a distributed quota or a general chatbot. See [AI operations](docs/AI_OPERATIONS.md).
 
 ## Architecture
 
@@ -248,6 +248,10 @@ For the public synthetic assessment only, also set `DEMO_MODE=true`, `DEMO_TENAN
 The case-study deployment uses Vercel Hobby, so health evaluation can be triggered on demand and any configured Vercel cron is limited to a Hobby-compatible cadence. The intended production operating cadence is approximately five minutes and would use a production-capable scheduler.
 
 The committed Hobby configuration contains no cron entry; use **Evaluate now** with a workspace operator token. `/api/cron/refresh` remains available for a future scheduler with `CRON_SECRET` authorization. `CRON_SECRET` is still required by production settings, including the hosted Hobby demo. To enable production scheduling on a suitable tier, add a root cron entry with path `/api/cron/refresh` and schedule `*/5 * * * *`. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and operator evaluation before demo use; verify recurring scheduler execution before production adoption. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
+
+## Evaluator walkthrough
+
+In three to five minutes: open Overview and pick a top issue; inspect its deterministic reason, first check and metrics; ask **“What should Ops investigate first?”** on the detail page and expand evidence if needed. Open Incidents to contrast an active failure with a resolved recovery. Finish in Data Sources with a previewed file import or the Live API guide. The separate AI assistant page answers workspace questions without crowding the morning view.
 
 ## Known limitations
 

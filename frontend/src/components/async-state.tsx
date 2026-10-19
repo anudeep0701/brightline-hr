@@ -17,11 +17,11 @@ export function ErrorNotice({
       className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
     >
       <div>
-        <p className="font-semibold">Telemetry could not be refreshed</p>
+        <p className="font-semibold">Health data is temporarily unavailable</p>
         <p className="mt-1">{message}</p>
         <p className="mt-1 text-xs">
           {retained
-            ? "Showing the last fetched evidence. Check evaluation timestamps before acting."
+            ? "Showing the last available evidence. Check timestamps before acting."
             : demo
               ? "Retry to reconnect the demo workspace. If this persists, reload the page or ask the deployment owner to check demo setup."
               : "Check the backend connection or connect a workspace token using Workspace access."}
@@ -34,7 +34,7 @@ export function ErrorNotice({
   );
 }
 export function LoadingState({
-  label = "Loading integration telemetry…",
+  label = "Loading health data…",
 }: {
   label?: string;
 }) {

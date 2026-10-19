@@ -8,6 +8,10 @@ import {
   ShieldCheck,
   KeyRound,
   ArrowUpRight,
+  Network,
+  AlertTriangle,
+  Sparkles,
+  Database,
 } from "lucide-react";
 import { setToken } from "@/lib/api";
 import { useDemoAccess } from "@/lib/demo-context";
@@ -20,7 +24,7 @@ export function Shell({
   onAuth: () => void;
   tenantName?: string;
 }) {
-  const dataSourcesActive = usePathname() === "/data-sources";
+  const pathname = usePathname();
   const demo = useDemoAccess();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
@@ -39,21 +43,35 @@ export function Shell({
         <div className="mt-10 hidden text-[12px] font-bold uppercase tracking-[.2em] text-slate-500 lg:block">
           Operations workspace
         </div>
-        <Link
-          href="/"
-          aria-current={!dataSourcesActive ? "page" : undefined}
-          className={`mt-4 flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold ${!dataSourcesActive ? "bg-teal/10 text-teal" : "text-slate-600 hover:bg-slate-50"}`}
+        <nav
+          aria-label="Main navigation"
+          className="mt-4 flex flex-wrap gap-1 lg:block lg:space-y-1"
         >
-          <LayoutDashboard size={18} />
-          Overview
-        </Link>
-        <Link
-          href="/data-sources"
-          aria-current={dataSourcesActive ? "page" : undefined}
-          className={`mt-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${dataSourcesActive ? "bg-teal/10 text-teal" : "text-slate-600 hover:bg-slate-50"}`}
-        >
-          Data sources
-        </Link>
+          {[
+            ["/", "Overview", LayoutDashboard],
+            ["/integrations", "Integrations", Network],
+            ["/incidents", "Incidents", AlertTriangle],
+            ["/assistant", "AI assistant", Sparkles],
+            ["/data-sources", "Data sources", Database],
+          ].map(([href, label, Icon]) => {
+            const active =
+              href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(href as string);
+            const Glyph = Icon as typeof LayoutDashboard;
+            return (
+              <Link
+                key={href as string}
+                href={href as string}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium ${active ? "bg-teal/10 text-teal" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                <Glyph size={18} />
+                {label as string}
+              </Link>
+            );
+          })}
+        </nav>
         <div className="mt-7 hidden text-xs leading-6 text-slate-500 lg:block">
           One operational view across your connected systems.
         </div>

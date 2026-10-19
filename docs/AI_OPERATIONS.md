@@ -2,7 +2,7 @@
 
 **Current verification (2026-10-19):** both the configured local application and the deployed operations assistant returned live `gpt-6-luna` answers for workspace, integration and incident questions, with citations and no fallback. Local provider durations were 3,547/1,947/2,221 ms; browser warning/error collection was empty. Hosted snapshots/incidents were unchanged; tenant refusals and credential separation passed. Earlier authentication failures below are historical. No environment file or credential value was inspected.
 
-The overview includes **AI Operations Assistant** for workspace questions; integration details add free questions with selectable current/incident scope. The integration detail page pairs a **Deterministic health policy** decision with an **AI incident brief**, six focused operator questions and resolved-incident recovery assistance. AI prioritizes relevant facts and read-only checks. Humans decide what to investigate; no operational actions or external workflow tools are executed.
+The dedicated **AI assistant** page handles workspace questions; the overview links to it without embedding a conversation. Integration details add free questions with selectable current/incident scope. The integration detail page pairs a **Deterministic health policy** decision with an **AI incident brief**, six focused operator questions and resolved-incident recovery assistance. AI prioritizes relevant facts and read-only checks. Humans decide what to investigate; no operational actions or external workflow tools are executed.
 
 ## AI value and grounding
 
@@ -137,4 +137,14 @@ Questions are limited to 600 normalized characters and a 4 KiB JSON payload, mod
 
 Responses distinguish `LIVE`, `FALLBACK` and `REFUSED`. Fallback shows deterministic evidence and an allowlisted availability category, never provider exception text. Audit includes request ID, scope, model, evidence digest, generation time, elapsed time, cache/fallback flags and a provider request ID when supplied. Logs use hashed tenant/integration/incident identifiers and omit questions, evidence and credentials. Interactive answers are not stored as chat history.
 
-To verify, ask a workspace question on the overview, inspect citations, then select an integration and an open/resolved incident. Check refusals for another customer's data or an operational action. A true provider success requires `availability=LIVE`, a returned model and `fallback_used=false`; a 200 fallback is not live verification.
+To verify, ask a workspace question on the AI assistant page, inspect citations, then select an integration and an open/resolved incident. Check refusals for another customer's data or an operational action. A true provider success requires `availability=LIVE`, a returned model and `fallback_used=false`; a 200 fallback is not live verification.
+
+## Operator-first answers and navigation
+
+Overview answers what needs attention; Integrations owns fleet search/type/status filters; Incidents shows active failures and resolved recovery; AI assistant handles workspace questions; Data Sources retains demo, file and API onboarding. Integration details lead with the deterministic decision, first check, evidence and history before AI.
+
+The question route now adds `intent`, `priorities`, `answer_evidence`, `additional_evidence` and `methodology` without removing its existing fields. Intent determines the shape: three ranked attention items, a direct health-driver explanation, material changes, a short investigation checklist, escalation context or expanded evidence. Percentages and latency are formatted for people. Default answers exclude healthy integration names where they are not relevant; UNKNOWN gaps remain separate. Priority uses active incidents, recorded/observed severity and measured error rate, without an invented business-risk score.
+
+The renderer always retains the stored health driver, even if a model selects only error facts for a latency/recovery issue. Two to four strong evidence points are visible; full evidence and methodology expand on request. The model still returns only known IDs, and all data access, action restrictions, validation, timeouts, caches and authorization remain in place. Presentation does not change health decisions or incident lifecycle.
+
+`GET /api/incidents` is a read-only, paginated workspace collection over the existing incident service and schema. It uses the same workspace reader authorization and fixed demo tenant as other reads. The UI shows the latest 100 records and links each to its integration evidence; the API retains state/time/offset filters.

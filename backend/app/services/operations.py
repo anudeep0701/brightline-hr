@@ -321,6 +321,36 @@ def history_page(db, tenant_id, integration_id, query, *, incidents=False):
     )
 
 
+def workspace_incidents(db, tenant_id, query):
+    scope(tenant_id, query.tenant_id)
+    require_tenant(db, tenant_id)
+    ids = select(Integration.id).where(Integration.tenant_id == tenant_id)
+    statement = incident_statement(tenant_id, ids, query)
+    if query.state == "OPEN":
+        statement = statement.where(Incident.resolved_at.is_(None))
+    elif query.state == "RESOLVED":
+        statement = statement.where(Incident.resolved_at.is_not(None))
+    total = db.scalar(select(func.count()).select_from(statement.subquery()))
+    return dict(
+        tenant_id=tenant_id,
+        total=total,
+        limit=query.limit,
+        offset=query.offset,
+        items=[
+            serialize_incident(db, item)
+            for item in db.scalars(
+                statement.order_by(
+                    Incident.resolved_at.is_not(None),
+                    Incident.opened_at.desc(),
+                    Incident.id,
+                )
+                .offset(query.offset)
+                .limit(query.limit)
+            )
+        ],
+    )
+
+
 def explanation(db, tenant_id, integration_id, settings):
     integration_or_404(db, tenant_id, integration_id)
     snapshot = latest_snapshot(db, tenant_id, integration_id)

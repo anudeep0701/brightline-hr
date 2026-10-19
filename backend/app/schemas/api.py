@@ -118,6 +118,14 @@ class IncidentHistoryOut(BaseModel):
     items: list[IncidentOut]
 
 
+class WorkspaceIncidentsOut(BaseModel):
+    tenant_id: str
+    total: int
+    limit: int
+    offset: int
+    items: list[IncidentOut]
+
+
 class CronOut(BaseModel):
     results: list[RefreshOut]
 

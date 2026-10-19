@@ -448,6 +448,19 @@ def main():
                 )[0]
                 == 403
             )
+            status, incident_feed, _ = request(
+                "/api/incidents?limit=100", credential=tokens["brightline"]
+            )
+            assert status == 200 and incident_feed["items"]
+            assert all(
+                item["tenant_id"] == "brightline" for item in incident_feed["items"]
+            )
+            assert (
+                request(
+                    "/api/incidents?tenant_id=other", credential=tokens["brightline"]
+                )[0]
+                == 403
+            )
             pilot_batch = {"events": [event("pilot-file-smoke")]}
             status, preview, _ = request(
                 "/api/imports/preview?format=json",

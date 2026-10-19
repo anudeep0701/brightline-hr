@@ -14,11 +14,11 @@ test("public backend contracts and scheduler reach FastAPI before the frontend c
     "/api/integrations/payroll/incidents", "/api/integrations/payroll/brief",
     "/api/integrations/payroll/explain", "/api/integrations/payroll/investigate",
     "/api/imports/preview", "/api/imports/commit", "/api/evaluate",
-    "/api/demo/session", "/api/assistant/ask",
+    "/api/demo/session", "/api/assistant/ask", "/api/incidents",
     "/api/cron/refresh", "/api/v1/dashboard", "/healthz", "/readyz",
     "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json",
   ]) assert.equal(service(path), "backend", path);
-  for (const path of ["/", "/data-sources", "/integrations/payroll", "/_next/static/chunk.js", "/apiculture"])
+  for (const path of ["/", "/data-sources", "/integrations", "/incidents", "/assistant", "/integrations/payroll", "/_next/static/chunk.js", "/apiculture"])
     assert.equal(service(path), "frontend", path);
   assert.ok(config.rewrites.every((rule) => !rule.destination.path), "No prefix stripping or route renaming");
 });

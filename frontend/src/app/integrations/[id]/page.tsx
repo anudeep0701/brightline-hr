@@ -9,6 +9,7 @@ import {
   IncidentAssistant,
   RecoverySummary,
 } from "@/components/incident-assistant";
+import { incidentDuration } from "@/components/incident-list";
 import { MetricHistory } from "@/components/metric-history";
 import { Trend } from "@/components/trend";
 import { api, percent, ms, time, typeName } from "@/lib/api";
@@ -74,7 +75,7 @@ export default function DetailPage({
       }}
     >
       <Link
-        href="/"
+        href="/integrations"
         className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-teal"
       >
         <ArrowLeft size={14} />
@@ -157,9 +158,9 @@ export default function DetailPage({
               Health decision · Deterministic health policy
             </p>
             <h2 className="mb-3 mt-2 text-lg font-semibold">
-              Current decision / What changed
+              Why this needs attention
             </h2>
-            <p className="text-sm leading-6">
+            <p className="text-base leading-7">
               {data.freshness?.current_evidence_status === "UNKNOWN" || stale
                 ? "Current evidence is insufficient or out of date. Check telemetry delivery before relying on the recorded decision below."
                 : (s?.reason_text ??
@@ -220,7 +221,9 @@ export default function DetailPage({
                   </p>
                   <p>
                     P50 {ms(m?.p50_ms)} · P99 {ms(m?.p99_ms)} · Baseline P95{" "}
-                    {ms(m?.baseline?.p95_ms)}
+                    {s.evidence.baseline_used
+                      ? ms(m?.baseline?.p95_ms)
+                      : "No eligible healthy baseline"}
                   </p>
                   <p>
                     Last request {time(m?.last_request_at)} · Expected freshness{" "}
@@ -261,7 +264,36 @@ export default function DetailPage({
               fresh traffic and sufficient evidence are required for HEALTHY.
             </p>
           </div>
-          <h2 className="mb-3 text-sm font-semibold">Observed evidence</h2>
+          <div className="mb-6">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-teal/20 bg-teal/5 p-5">
+              <div className="max-w-3xl">
+                <h2 className="text-sm font-semibold">
+                  Investigation guidance
+                </h2>
+                <p className="mt-2 text-sm leading-6">
+                  {investigationGuidance(
+                    {
+                      integration: data.integration,
+                      snapshot: data.snapshot,
+                      previous_snapshot: null,
+                      stale,
+                      freshness: data.freshness,
+                    },
+                    checkedAt,
+                  )}
+                </p>
+                <p className="mt-2 text-xs text-slate-600">
+                  Scope: {workspace?.tenant_name} / {data.integration.name} ·
+                  Owner: {data.integration.owner}. Customer or employee impact
+                  is not measured by these request logs.
+                </p>
+              </div>
+              <a href="#ai-investigation" className="button-secondary">
+                AI-assisted investigation ↓
+              </a>
+            </div>
+          </div>
+          <h2 className="mb-3 text-sm font-semibold">Current evidence</h2>
           <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
             {[
               {
@@ -297,40 +329,6 @@ export default function DetailPage({
                 <p className="text-xs leading-5 text-slate-500">{card.hint}</p>
               </div>
             ))}
-          </div>
-          <div className="mb-6">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-teal/20 bg-teal/5 p-5">
-              <div className="max-w-3xl">
-                <h2 className="text-sm font-semibold">
-                  Investigation guidance
-                </h2>
-                <p className="mt-2 text-sm leading-6">
-                  {investigationGuidance(
-                    {
-                      integration: data.integration,
-                      snapshot: data.snapshot,
-                      previous_snapshot: null,
-                      stale,
-                      freshness: data.freshness,
-                    },
-                    checkedAt,
-                  )}
-                </p>
-                <p className="mt-2 text-xs text-slate-600">
-                  Scope: {workspace?.tenant_name} / {data.integration.name} ·
-                  Owner: {data.integration.owner}. Customer or employee impact
-                  is not measured by these request logs.
-                </p>
-              </div>
-              <a href="#ai-investigation" className="button-secondary">
-                AI-assisted investigation ↓
-              </a>
-            </div>
-            <IncidentAssistant
-              key={`${id}:${scope}:${s?.id}`}
-              detail={data}
-              operator={workspace?.role === "operator"}
-            />
           </div>
           <MetricHistory history={data.history} />
           <div className="mb-6 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
@@ -425,6 +423,7 @@ export default function DetailPage({
             {data.incidents.map((incident) => (
               <div
                 key={incident.id}
+                id={`incident-${incident.id}`}
                 className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 py-4"
               >
                 <div>
@@ -440,17 +439,7 @@ export default function DetailPage({
                 <div className="w-full text-xs leading-6 text-slate-600">
                   <p className="mb-2 font-medium">
                     {incident.resolved_at ? "Confirmed duration" : "Open for"}:{" "}
-                    {Math.max(
-                      0,
-                      Math.floor(
-                        ((incident.resolved_at
-                          ? Date.parse(incident.resolved_at)
-                          : checkedAt) -
-                          Date.parse(incident.opened_at)) /
-                          60000,
-                      ),
-                    )}{" "}
-                    min
+                    {incidentDuration(incident, checkedAt)}
                   </p>
                   <p>
                     Deterministic trigger:{" "}
@@ -494,6 +483,11 @@ export default function DetailPage({
               </p>
             )}
           </section>
+          <IncidentAssistant
+            key={`${id}:${scope}:${s?.id}`}
+            detail={data}
+            operator={workspace?.role === "operator"}
+          />
           <details className="card overflow-hidden">
             <summary className="cursor-pointer p-5 text-sm font-semibold">
               Recent request logs{" "}

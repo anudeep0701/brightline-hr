@@ -36,6 +36,7 @@ export type Snapshot = {
   healthy_window_streak: number;
   evidence: {
     policy_version: string;
+    baseline_used?: boolean;
     thresholds: Record<string, number>;
     metrics: Metrics;
     reasons: string[];
@@ -220,6 +221,17 @@ export type AssistantAnswer = {
     integration_id: string | null;
     incident_id: string | null;
   }[];
+  intent?: string;
+  priorities?: {
+    integration_id: string;
+    name: string;
+    status: string;
+    reason: string;
+    next_check: string;
+  }[];
+  answer_evidence?: AssistantAnswer["evidence"];
+  additional_evidence?: AssistantAnswer["evidence"];
+  methodology?: string[];
   recommended_checks: string[];
   confidence: "high" | "medium" | "low";
   limitations: string[];

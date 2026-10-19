@@ -109,6 +109,7 @@ def monitoring_clock(monkeypatch):
         "app.services.operations",
         "app.ai.enrichment",
         "app.ai.incident_assistance",
+        "app.ai.operations_assistant",
         "app.services.freshness",
     ):
         monkeypatch.setattr(f"{module}.datetime", FrozenDateTime)

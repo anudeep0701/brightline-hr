@@ -23,7 +23,7 @@ Request logs → validation/normalization → metric aggregation → determinist
 
 API batches, confirmed file imports and synthetic data share validation, tenant/integration authorization and tenant/request-ID deduplication. Raw events remain separate from metrics. Rollups, explainable snapshots and incident changes commit together; repeating one evaluation bucket cannot advance confirmation.
 
-The dashboard leads with priorities and freshness. AI is separate, operator-requested enrichment after the decision is persisted.
+The overview leads with priorities and freshness; fleet evidence, incidents and workspace AI have separate views. AI is separate, operator-requested enrichment after the decision is persisted.
 
 # Health Model
 
@@ -54,7 +54,7 @@ One Vercel Services project builds Next.js and FastAPI independently, routing `/
 
 I use OpenAI for workspace questions, selected integration/incident investigation, and incident/recovery briefs. It prioritizes known facts and read-only checks; briefs also surface a supported issue category. Request error categorization itself remains deterministic; AI selects only categories supported by those observations, not classifications of arbitrary raw error text.
 
-Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. Evidence is retrieved under the existing tenant authorization before the model is called. Telemetry is untrusted data, never instructions; raw messages, employee details and credentials are omitted, labels sanitized, and out-of-scope/action requests declined. There are no SQL, network or mutation tools. The operator decides what to do. Bounded questions/context/output, brief persistence and short-lived answer caching limit cost; in-process throttling is best-effort across serverless workers. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
+Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. Responses lead with the stored health driver and a small set of priorities; supporting evidence and methodology expand on request. Evidence is retrieved under the existing tenant authorization before the model is called. Telemetry is untrusted data, never instructions; raw messages, employee details and credentials are omitted, labels sanitized, and out-of-scope/action requests declined. There are no SQL, network or mutation tools. The operator decides what to do. Bounded questions/context/output, brief persistence and short-lived answer caching limit cost; in-process throttling is best-effort across serverless workers. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
 
 # Trade-offs
 

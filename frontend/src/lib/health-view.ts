@@ -115,15 +115,24 @@ export function advisoryConfidence(value: number) {
 export function investigationGuidance(row: IntegrationRow, now: number) {
   if (currentEvidenceState(row, now) === "unknown")
     return "Check telemetry delivery and evaluation freshness first.";
-  const categories = row.snapshot?.evidence.metrics.top_error_categories ?? [];
-  if (categories.some((item) => item.category === "auth"))
-    return "Check credential validity, permissions and recent authentication changes.";
+  const code = row.snapshot?.reason_code ?? "";
+  const signals = row.snapshot?.evidence.signal_reason_codes ?? [];
   if (
-    row.snapshot?.evidence.signal_reason_codes?.some((code) =>
-      code.startsWith("LATENCY"),
-    )
+    code === "RECOVERY_PENDING" ||
+    (["RECOVERY_MARGIN_NOT_MET", "UNHEALTHY_RECOVERY_REQUIRED"].includes(
+      code,
+    ) &&
+      !signals.length)
   )
+    return `Verify recovery: ${row.snapshot?.healthy_window_streak ?? 0} of ${row.snapshot?.evidence.thresholds?.healthy_recovery_windows ?? "the required"} healthy windows confirmed. Check the stored recovery margins.`;
+  const signal = /^(LATENCY|ERROR|TIMEOUT)/.test(code)
+    ? code
+    : (signals.find((value) => value.endsWith("CRITICAL")) ?? signals[0] ?? "");
+  if (signal.startsWith("LATENCY"))
     return "Compare upstream response times, timeout settings and recent traffic volume.";
+  const categories = row.snapshot?.evidence.metrics.top_error_categories ?? [];
+  if (categories[0]?.category === "auth")
+    return "Check credential validity, permissions and recent authentication changes.";
   return "Inspect the leading error category and provider responses in the incident detail.";
 }
 
@@ -136,6 +145,24 @@ export function compareCurrentPriority(
   return (
     priority[currentEvidenceState(a, now)] -
       priority[currentEvidenceState(b, now)] ||
+    (currentEvidenceState(a, now) === "unknown"
+      ? isStale(a, now) || a.freshness?.status !== "RECENT_TRAFFIC"
+        ? 0
+        : 1
+      : priority[
+          (a.snapshot?.observed_status?.toLowerCase() as Status) ??
+            a.snapshot?.status ??
+            "unknown"
+        ]) -
+      (currentEvidenceState(b, now) === "unknown"
+        ? isStale(b, now) || b.freshness?.status !== "RECENT_TRAFFIC"
+          ? 0
+          : 1
+        : priority[
+            (b.snapshot?.observed_status?.toLowerCase() as Status) ??
+              b.snapshot?.status ??
+              "unknown"
+          ]) ||
     (b.snapshot?.evidence.metrics.error_rate ?? -1) -
       (a.snapshot?.evidence.metrics.error_rate ?? -1) ||
     a.integration.name.localeCompare(b.integration.name)

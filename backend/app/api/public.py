@@ -20,6 +20,7 @@ from app.schemas.api import (
     MetricsHistoryOut,
     ProbeOut,
     TimeRange,
+    WorkspaceIncidentsOut,
     WorkspaceOut,
 )
 from app.schemas.contracts import DetailOut, EnrichmentOut, RefreshOut
@@ -132,6 +133,19 @@ def incidents(
     return operations.history_page(
         db, user.tenant_id, integration_id, filters, incidents=True
     )
+
+
+@router.get(
+    "/api/incidents",
+    response_model=WorkspaceIncidentsOut,
+    tags=["Incidents"],
+    summary="Read authorized workspace incidents",
+)
+def workspace_incidents(
+    filters: Annotated[IncidentQuery, Query()], user: Reader, db: Db
+):
+    """Read-only paginated incident activity; active first, then resolved. Tenant scope comes from workspace authorization."""
+    return operations.workspace_incidents(db, user.tenant_id, filters)
 
 
 @router.post(

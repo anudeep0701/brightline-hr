@@ -45,6 +45,22 @@ class EvidenceReference(BaseModel):
     observed_at: datetime | None = None
     integration_id: str | None = None
     incident_id: str | None = None
+    integration_name: str | None = None
+    health_status: str | None = None
+    observed_status: str | None = None
+    error_rate: float | None = None
+    next_check: str | None = None
+    active_incident: bool = False
+    stale_evidence: bool = False
+    material_change: bool = False
+
+
+class AssistantPriority(BaseModel):
+    integration_id: str
+    name: str
+    status: str
+    reason: str
+    next_check: str
 
 
 class AssistantAudit(BaseModel):
@@ -73,3 +89,8 @@ class AssistantAnswer(BaseModel):
     confidence: Literal["high", "medium", "low"]
     limitations: list[str]
     audit: AssistantAudit
+    intent: str = "why"
+    priorities: list[AssistantPriority] = Field(default_factory=list)
+    answer_evidence: list[EvidenceReference] = Field(default_factory=list)
+    additional_evidence: list[EvidenceReference] = Field(default_factory=list)
+    methodology: list[str] = Field(default_factory=list)

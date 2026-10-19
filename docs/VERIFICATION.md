@@ -1,5 +1,14 @@
 # Verification record
 
+## Final product and UX refinement — 2026-10-19
+
+- Overview, Integrations, Incidents, AI assistant and Data Sources now have distinct operator purposes. Overview keeps priorities/outcomes concise; detail pages lead with the deterministic reason, next check, evidence and incident/recovery history before AI. The read-only workspace incident collection reuses existing scoped incident queries; no schema or health-policy change was required.
+- AI responses are intent-specific and lead with the stored health driver. Attention shows at most three priorities, then two to four strong evidence points. Percentages/latency are readable; full evidence, methodology and provenance expand on request. Current observed severity and measurements break priority ties; the model cannot substitute an error-only explanation for a latency/recovery decision. Ineligible historical baselines are not presented as healthy references.
+- **435 backend tests, 59 frontend tests and 14 launcher/deployment tests passed.** New checks cover ranking bounds, healthy exclusions, metric formatting, actual drivers, recovery, stale evidence, disclosure, new navigation, scoped incident reads and unchanged AI guardrails. The existing exact-grounding assertions now validate the answer against its explicit `answer_evidence` rather than concatenating the separately displayed supporting evidence. No security or domain assertion was removed.
+- Ruff F/I/format, frontend lint, TypeScript and the production build passed. Production import/startup without OpenAI, disposable PostgreSQL migration/query checks, and the real HTTP ingestion/evaluation/incidents/uploads/AI-fallback smoke passed. No environment file or hosted migration was accessed. Browser and hosted outcomes are recorded with the release report; live provider success must still be verified separately from fallback.
+- Browser validation against the final production build and same-origin rewrite table passed anonymous demo entry, normal workspace authentication, first-use empty state, dedicated navigation, priority/evidence disclosure, latency/recovery explanations, active/resolved incident links, evaluation feedback, CSV partial import and duplicate preview, JSON import, provenance and the Live API guide. Desktop 1280px and narrow 390px layouts had no document overflow; captured demo console warnings/errors were empty. All test records were disposable local data.
+- Submission scope is frozen after this pass: subsequent implementation changes are limited to blocking defects.
+
 ## Interactive operations assistant — 2026-10-19
 
 - Added workspace, integration and selected-incident questions through `POST /api/assistant/ask`, using existing workspace/demo authorization and the shared OpenAI Responses client. The model selects supplied fact/check IDs; the server renders cited evidence. There are no model action tools or domain mutations.

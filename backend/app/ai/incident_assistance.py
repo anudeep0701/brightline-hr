@@ -278,17 +278,12 @@ def generate(session, snapshot, settings, topic="brief", incident=None):
         category = None
         fallback = "AI_UNAVAILABLE"
         try:
-            with enrichment.OpenAI(
-                api_key=settings.openai_api_key, timeout=8, max_retries=0
-            ) as client:
-                response = client.responses.parse(
-                    **enrichment.model_options(settings),
-                    store=False,
-                    max_output_tokens=1000,
-                    instructions=INSTRUCTIONS,
-                    input=serialized,
-                    text_format=GroundedPlan,
-                )
+            response = enrichment.structured_response(
+                settings,
+                instructions=INSTRUCTIONS,
+                input=serialized,
+                text_format=GroundedPlan,
+            )
             if (
                 getattr(response, "status", "completed") != "completed"
                 or response.output_parsed is None

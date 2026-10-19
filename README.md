@@ -2,7 +2,7 @@
 
 Brightline HR runs payroll, e-signature, ATS, directory and notification integrations for its customers. Ops often finds out that an integration is broken when a customer opens a support ticket. This project turns request logs into a morning view of what needs attention, why, and whether it is recovering.
 
-The overview prioritizes issues and evidence gaps; integration details explain decisions, investigation and recovery. Customers can upload pilot logs or send live events through an authenticated API. Both paths use the same ingestion and health services.
+The overview prioritizes issues and evidence gaps; integration details explain decisions, investigation and recovery. **AI Operations Assistant** accepts operational questions across the current workspace or a selected integration/incident and shows the supporting evidence. Customers can upload pilot logs or send live events through an authenticated API. Both paths use the same ingestion and health services.
 
 This is an FDE case-study MVP. Its seeded outcomes demonstrate the workflow; they are not production results or customer ROI.
 
@@ -11,7 +11,7 @@ The hosted assessment can open directly into a synthetic Brightline demo workspa
 ## Design decisions
 
 - **Health is deterministic.** A configurable policy combines errors, timeouts, latency, volume and freshness. Good latency cannot cancel high errors. Snapshots retain metrics, policy evidence and reasons.
-- **AI assists investigation.** Briefs and focused answers use known facts and suggested checks. AI cannot change health, policy or incidents, or execute actions. Missing credentials and failed/invalid responses return deterministic explanations.
+- **AI assists investigation.** Questions, briefs and investigation guidance use known facts and suggested checks. The backend retrieves bounded tenant evidence; OpenAI selects evidence/check identifiers and the server renders cited facts. Raw logs and employee data are excluded. AI cannot change health, policy or incidents, or execute actions. Missing credentials and failed/invalid responses return deterministic explanations.
 - **UNKNOWN is meaningful.** Low volume, absent telemetry and stale evidence do not establish health. Current evidence is distinct from historical decisions.
 - **Confirmation and recovery take multiple windows.** Two adjacent bad windows with current critical evidence, or three consecutive degraded windows, confirm UNHEALTHY; two clean windows below stricter thresholds resolve an incident. Repeated evaluation of one window does not advance a streak; UNKNOWN does not resolve incidents. Overlapping windows test persistence, not statistical independence.
 - **Tenant scope comes from credentials.** Workspace tokens grant reader/operator access. Separate ingestion keys authorize writes for one tenant only. Both are stored as hashes. Submitted tenant IDs cannot grant access to another tenant.
@@ -19,6 +19,8 @@ The hosted assessment can open directly into a synthetic Brightline demo workspa
 Defaults: 15-minute windows, five-minute cadence, 20-request minimum, 1%/5% error and timeout warning/critical thresholds, and 1.5×/3× P95 latency thresholds. Baseline comparisons require enough history. Per-integration policy is configurable through the authenticated API.
 
 See [SOLUTION_DESIGN.md](SOLUTION_DESIGN.md) for architecture trade-offs and [the health policy](docs/HEALTH_ENGINE.md) for exact rules.
+
+Ask **“What needs attention right now?”** on the overview, or **“Has this incident recovered?”** on an integration detail page. The assistant shows citations, suggested read-only checks, confidence and request provenance. It accepts 600-character questions, analyzes at most 12 integrations and an hour of bounded snapshots, and has a best-effort per-worker tenant budget of 10 questions/minute. This is not a distributed quota or a general chatbot. See [AI operations](docs/AI_OPERATIONS.md).
 
 ## Architecture
 
@@ -217,6 +219,7 @@ Interactive schemas are at `/docs`. Workspace routes require a tenant-scoped rea
 | `POST /api/ingest` | Validated external request batch with accepted/rejected/duplicate counts |
 | `POST /api/imports/preview`, `POST /api/imports/commit` | Workspace-authorized file validation and confirmed import |
 | `POST /api/evaluate` | Evaluate the authenticated tenant at server time |
+| `POST /api/assistant/ask` | Operational question in workspace, integration or incident scope; cited advisory answer or deterministic fallback |
 | `POST /api/integrations/{id}/brief`, `POST /api/integrations/{id}/investigate`, `POST /api/integrations/{id}/explain` | Grounded assistance with deterministic fallback |
 
 API health states are uppercase, rates are fractions, latency is milliseconds and timestamps are UTC. See [API contracts](docs/API_CONTRACT.md) for filters, pagination, compatibility routes and error responses.

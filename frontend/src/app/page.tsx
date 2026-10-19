@@ -16,6 +16,7 @@ import { Shell } from "@/components/shell";
 import { StatusBadge } from "@/components/status";
 import { ErrorNotice, LoadingState } from "@/components/async-state";
 import { DemoGuide } from "@/components/demo-guide";
+import { OperationsAssistant } from "@/components/operations-assistant";
 import { MorningSummary } from "@/components/morning-summary";
 import { OperationalImpact } from "@/components/operational-impact";
 import { Trend } from "@/components/trend";
@@ -200,6 +201,12 @@ export default function Page() {
         </p>
       </div>
       {data && <MorningSummary items={items} now={checkedAt} />}
+      {data && workspace && (
+        <OperationsAssistant
+          key={`${workspace.tenant_id}:${scope}`}
+          operator={workspace.role === "operator"}
+        />
+      )}
       {!!overdue && (
         <div className="mb-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
           <Clock3 size={15} className="mt-0.5 shrink-0" />

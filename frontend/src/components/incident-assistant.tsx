@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { api, time } from "@/lib/api";
+import { OperationsAssistant } from "@/components/operations-assistant";
 import { advisoryConfidence } from "@/lib/health-view";
 import type {
   AIAudit,
@@ -201,54 +202,66 @@ export function IncidentAssistant({
           </p>
         </div>
       )}
-      <div className="mt-5 border-t border-slate-100 pt-5">
-        <h3 className="text-sm font-semibold">Investigate with AI</h3>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Ask about this incident. Answers use this integration’s evidence; you
-          choose and carry out the next action.
-        </p>
-        <label
-          className="mt-3 block text-xs font-medium"
-          htmlFor="investigation-topic"
-        >
-          Investigation question
-        </label>
-        <select
-          id="investigation-topic"
-          className="filter-select mt-2 w-full max-w-full"
-          value={topic}
-          disabled={!!busy}
-          onChange={(event) => {
-            setTopic(event.target.value);
-            setAnswer(null);
-          }}
-        >
-          {questions.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <button
-          className="button-secondary my-3"
-          disabled={!!busy || !operator || !snapshot}
-          onClick={() => void request("investigate")}
-        >
-          {busy === "investigate" ? "Investigating…" : "Investigate with AI"}
-        </button>
-        {answer && (
-          <Report
-            report={answer.report}
-            ai={answer.source.startsWith("openai:")}
-            audit={answer.audit}
-          />
-        )}
-        {!operator && (
-          <p className="text-xs text-slate-500">
-            Connect an operator workspace token to request assistance.
-          </p>
-        )}
+      <div className="mt-5">
+        <OperationsAssistant
+          integrationId={detail.integration.id}
+          incidents={detail.incidents}
+          operator={operator}
+        />
       </div>
+      <details className="mt-5 border-t border-slate-100 pt-5">
+        <summary className="cursor-pointer text-sm font-medium">
+          Guided investigation topics
+        </summary>
+        <div className="mt-3">
+          <h3 className="text-sm font-semibold">Investigate with AI</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Ask about this incident. Answers use this integration’s evidence;
+            you choose and carry out the next action.
+          </p>
+          <label
+            className="mt-3 block text-xs font-medium"
+            htmlFor="investigation-topic"
+          >
+            Investigation question
+          </label>
+          <select
+            id="investigation-topic"
+            className="filter-select mt-2 w-full max-w-full"
+            value={topic}
+            disabled={!!busy}
+            onChange={(event) => {
+              setTopic(event.target.value);
+              setAnswer(null);
+            }}
+          >
+            {questions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="button-secondary my-3"
+            disabled={!!busy || !operator || !snapshot}
+            onClick={() => void request("investigate")}
+          >
+            {busy === "investigate" ? "Investigating…" : "Investigate with AI"}
+          </button>
+          {answer && (
+            <Report
+              report={answer.report}
+              ai={answer.source.startsWith("openai:")}
+              audit={answer.audit}
+            />
+          )}
+          {!operator && (
+            <p className="text-xs text-slate-500">
+              Connect an operator workspace token to request assistance.
+            </p>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

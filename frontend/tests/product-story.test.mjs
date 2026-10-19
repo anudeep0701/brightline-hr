@@ -518,3 +518,139 @@ test("AI provenance displays safe provider diagnostics without replacing the hea
   assert.match(html, /Observed request evidence/);
   assert.match(html, /Deterministic fallback used/);
 });
+
+const { OperationsAssistant, AssistantFeedback, AssistantResult } = load(
+  path.join(src, "components/operations-assistant.tsx"),
+);
+const assistantAnswer = {
+  availability: "LIVE",
+  answer:
+    "Payroll: current evidence UNHEALTHY; deterministic policy is authoritative.",
+  summary: "Payroll needs attention.",
+  evidence: [
+    {
+      id: "f1",
+      label: "Error rate",
+      value: "20 failures / 100 attempts; error rate 20%.",
+      observed_at: new Date(now).toISOString(),
+      integration_id: "payroll",
+    },
+  ],
+  recommended_checks: ["Inspect observed provider error categories."],
+  confidence: "medium",
+  limitations: ["Current workspace only; no actions executed."],
+  audit: {
+    request_id: "offline-ui-request",
+    requested_model: "gpt-6-luna",
+    model: "gpt-6-luna",
+    generated_at: new Date(now).toISOString(),
+    duration_ms: 220,
+    cache_hit: false,
+  },
+};
+
+test("workspace AI assistant is visible, bounded and explicitly advisory", () => {
+  const html = render(OperationsAssistant, { operator: true });
+  for (const text of [
+    "AI Operations Assistant",
+    "Current workspace",
+    "No actions executed",
+    "deterministic policy",
+    "Ask AI",
+    "What needs my attention",
+    'maxLength="600"',
+  ])
+    assert.ok(html.includes(text), text);
+  assert.ok(!html.includes("incident scope"));
+  assert.ok(
+    render(OperationsAssistant, { operator: false }).includes(
+      "Connect an operator workspace",
+    ),
+  );
+});
+
+test("integration assistant selects only supplied incident scope", () => {
+  const html = render(OperationsAssistant, {
+    operator: true,
+    integrationId: "payroll",
+    incidents: [
+      {
+        id: "resolved-incident",
+        opened_at: new Date(now).toISOString(),
+        resolved_at: new Date(now).toISOString(),
+      },
+    ],
+  });
+  assert.ok(html.includes("Selected integration / incident"));
+  assert.ok(html.includes('value="resolved-incident"'));
+  assert.ok(html.includes("Resolved"));
+  assert.ok(html.includes("What evidence supports this classification?"));
+  assert.ok(!html.includes("tenant_id"));
+});
+
+test("AI result renders source citations and human investigation separately from health", () => {
+  const html = render(AssistantResult, { result: assistantAnswer });
+  for (const text of [
+    "AI analysis · Advisory",
+    "Supporting evidence",
+    "20 failures",
+    "Human decides",
+    "Health decisions remain",
+    "Limits and AI provenance",
+    "/integrations/payroll#health-decision",
+    "offline-ui-request",
+  ])
+    assert.ok(html.includes(text), text);
+});
+
+test("AI loading and request errors preserve available health evidence", () => {
+  assert.ok(
+    render(AssistantFeedback, { busy: true, error: "" }).includes(
+      'role="status"',
+    ),
+  );
+  const error = render(AssistantFeedback, {
+    busy: false,
+    error: "Try again in one minute.",
+  });
+  assert.ok(
+    error.includes('role="alert"') &&
+      error.includes("Health evidence remains available"),
+  );
+});
+
+test("AI fallback and refusal do not claim live AI success", () => {
+  const fallback = render(AssistantResult, {
+    result: {
+      ...assistantAnswer,
+      availability: "FALLBACK",
+      audit: {
+        ...assistantAnswer.audit,
+        model: null,
+        failure_category: "AUTHENTICATION_ERROR",
+      },
+    },
+  });
+  assert.ok(fallback.includes("AI unavailable · Deterministic evidence"));
+  assert.ok(fallback.includes("AUTHENTICATION ERROR"));
+  assert.ok(!fallback.includes("AI analysis · Advisory"));
+  const refusal = render(AssistantResult, {
+    result: {
+      ...assistantAnswer,
+      availability: "REFUSED",
+      answer: "I can only answer from the current workspace.",
+      evidence: [],
+      recommended_checks: [],
+    },
+  });
+  assert.ok(refusal.includes("Scope and action boundary"));
+  assert.ok(!refusal.includes("Supporting evidence"));
+});
+
+test("assistant treats telemetry content as text and escapes markup", () => {
+  const html = render(AssistantResult, {
+    result: { ...assistantAnswer, answer: '<script>alert("x")</script>' },
+  });
+  assert.ok(!html.includes("<script>"));
+  assert.ok(html.includes("&lt;script&gt;"));
+});

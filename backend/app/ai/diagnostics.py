@@ -1,6 +1,8 @@
 """Allowlisted provider diagnostics; never serialize exception messages or bodies."""
 
+import hashlib
 import logging
+import re
 from time import monotonic
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError
@@ -61,7 +63,17 @@ def response_failure(response):
     return ResponseFailure("INVALID_RESPONSE")
 
 
-def log_result(model, started, category=None):
+def log_result(
+    model,
+    started,
+    category=None,
+    *,
+    request_id=None,
+    tenant_id=None,
+    integration_id=None,
+    incident_id=None,
+    provider_request_id=None,
+):
     duration = round((monotonic() - started) * 1000)
     logger.log(
         logging.WARNING if category else logging.INFO,
@@ -71,4 +83,26 @@ def log_result(model, started, category=None):
         duration,
         category is not None,
     )
+    if request_id:
+
+        def ref(value):
+            return (
+                hashlib.sha256(str(value).encode()).hexdigest()[:12] if value else None
+            )
+
+        safe_provider = (
+            provider_request_id
+            if isinstance(provider_request_id, str)
+            and re.fullmatch(r"req[_-][A-Za-z0-9_-]{1,120}", provider_request_id)
+            else None
+        )
+        logger.log(
+            logging.WARNING if category else logging.INFO,
+            "AI context request_id=%s tenant_ref=%s integration_ref=%s incident_ref=%s provider_request_id=%s",
+            request_id,
+            ref(tenant_id),
+            ref(integration_id),
+            ref(incident_id),
+            safe_provider,
+        )
     return duration

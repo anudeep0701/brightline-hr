@@ -14,7 +14,7 @@ test("public backend contracts and scheduler reach FastAPI before the frontend c
     "/api/integrations/payroll/incidents", "/api/integrations/payroll/brief",
     "/api/integrations/payroll/explain", "/api/integrations/payroll/investigate",
     "/api/imports/preview", "/api/imports/commit", "/api/evaluate",
-    "/api/demo/session",
+    "/api/demo/session", "/api/assistant/ask",
     "/api/cron/refresh", "/api/v1/dashboard", "/healthz", "/readyz",
     "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json",
   ]) assert.equal(service(path), "backend", path);

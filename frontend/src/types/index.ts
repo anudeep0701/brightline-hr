@@ -201,3 +201,42 @@ export type DataSources = {
     freshness: Freshness;
   }[];
 };
+
+export type AssistantQuestion = {
+  question: string;
+  scope: "workspace" | "integration" | "incident";
+  integration_id?: string;
+  incident_id?: string;
+};
+export type AssistantAnswer = {
+  availability: "LIVE" | "FALLBACK" | "REFUSED";
+  answer: string;
+  summary: string;
+  evidence: {
+    id: string;
+    label: string;
+    value: string;
+    observed_at: string | null;
+    integration_id: string | null;
+    incident_id: string | null;
+  }[];
+  recommended_checks: string[];
+  confidence: "high" | "medium" | "low";
+  limitations: string[];
+  audit: {
+    request_id: string;
+    tenant_id: string;
+    scope: string;
+    integration_id: string | null;
+    incident_id: string | null;
+    requested_model: string;
+    model: string | null;
+    generated_at: string;
+    duration_ms: number;
+    fallback_used: boolean;
+    failure_category: string | null;
+    provider_request_id: string | null;
+    evidence_digest: string | null;
+    cache_hit: boolean;
+  };
+};

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException
 
+from app.api.assistant import router as assistant_router
 from app.api.demo import router as demo_router
 from app.api.onboarding import router as onboarding_router
 from app.api.public import router as public_router
@@ -73,6 +74,7 @@ if settings.cors_origins:
         ],
         allow_credentials=settings.demo_mode and settings.app_env != "production",
     )
+app.include_router(assistant_router)
 app.include_router(public_router)
 app.include_router(router)
 app.include_router(onboarding_router)

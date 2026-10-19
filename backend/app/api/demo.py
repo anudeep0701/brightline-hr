@@ -132,7 +132,13 @@ def authorize_demo(request, db, settings):
         or re.fullmatch(r"/api/v1/integrations/[^/]+(?:/config)?", path)
     )
     writes = (
-        path in {"/api/evaluate", "/api/v1/refresh", "/api/demo/refresh"}
+        path
+        in {
+            "/api/evaluate",
+            "/api/v1/refresh",
+            "/api/demo/refresh",
+            "/api/assistant/ask",
+        }
         or (
             settings.demo_allow_file_import
             and path in {"/api/imports/preview", "/api/imports/commit"}

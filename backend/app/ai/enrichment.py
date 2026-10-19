@@ -41,6 +41,21 @@ def model_options(settings):
     return options
 
 
+def structured_response(
+    settings, *, instructions, input, text_format, max_output_tokens=1000
+):
+    """Shared server-only Responses client for every advisory workflow."""
+    with OpenAI(api_key=settings.openai_api_key, timeout=8, max_retries=0) as client:
+        return client.responses.parse(
+            **model_options(settings),
+            store=False,
+            max_output_tokens=max_output_tokens,
+            instructions=instructions,
+            input=input,
+            text_format=text_format,
+        )
+
+
 def cache_model_matches(record, settings):
     # Keyless operators can still read an existing advisory; a configured provider
     # must regenerate it after a model change. Never cache a credential.
@@ -85,17 +100,12 @@ def explain(session, snapshot, settings):
         category = None
         started = monotonic()
         try:
-            with OpenAI(
-                api_key=settings.openai_api_key, timeout=8, max_retries=0
-            ) as client:
-                response = client.responses.parse(
-                    **model_options(settings),
-                    store=False,
-                    max_output_tokens=1000,
-                    instructions=INSTRUCTIONS,
-                    input=serialized,
-                    text_format=EnrichmentReport,
-                )
+            response = structured_response(
+                settings,
+                instructions=INSTRUCTIONS,
+                input=serialized,
+                text_format=EnrichmentReport,
+            )
             if (
                 getattr(response, "status", "completed") != "completed"
                 or response.output_parsed is None

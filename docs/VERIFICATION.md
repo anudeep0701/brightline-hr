@@ -1,5 +1,13 @@
 # Verification record
 
+## Interactive operations assistant — 2026-10-19
+
+- Added workspace, integration and selected-incident questions through `POST /api/assistant/ask`, using existing workspace/demo authorization and the shared OpenAI Responses client. The model selects supplied fact/check IDs; the server renders cited evidence. There are no model action tools or domain mutations.
+- **418 backend tests, 53 frontend tests and 14 deployment/launcher tests passed.** New cases cover all scopes, citations, prompt injection in telemetry, user abuse, tenant/incident isolation, demo scope, keyless/invalid-key/timeout/malformed fallback, immutable health/incidents/credential counts, payload/question/rate bounds, caching, recovery evidence, actual SDK parsing over offline HTTP, and UI states. Offline provider success is not live authentication verification.
+- Ruff F/I and format checks, frontend lint, TypeScript, an isolated production build with server-secret bundle checks, production import/startup without OpenAI, and real HTTP ingestion/evaluation/assistant fallback smoke passed. Disposable PostgreSQL 16 passed the scoped assistant query plus existing clean/repeat migrations, upgrade preservation and concurrency checks. No schema change was needed.
+- Browser checks against the production build and committed same-origin rewrites exercised workspace questions, explicit cross-workspace refusal and selected incident recovery evidence with deterministic fallback and no captured console warnings/errors. The assistant remains advisory; normal workspace authentication and ingestion credentials are unchanged.
+- Live local and hosted provider verification is reported separately after deployment. The preceding release returned `AUTHENTICATION_ERROR` in both environments; this feature does not claim that an offline fake or a 200 fallback proves a valid OpenAI credential. Limits remain best-effort per worker, and interactive questions are not persistent conversation history.
+
 ## Local-first OpenAI follow-up — 2026-10-19
 
 - Tested the user-started local application first, using its existing workspace authentication and configuration. No environment file or API secret was inspected. Local probes passed; uncached investigation returned `AUTHENTICATION_ERROR`, requested model `gpt-6-luna`, in 346–489 ms. Current health and incident displays remained unchanged.

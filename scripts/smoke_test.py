@@ -428,6 +428,26 @@ def main():
             )
             assert status == 200 and answer["audit"]["health_state"] == "HEALTHY"
             assert answer["audit"]["incident_id"] == recovered[0].id
+            status, operations_answer, _ = request(
+                "/api/assistant/ask",
+                "POST",
+                {"question": "What needs attention right now?"},
+                tokens["brightline"],
+            )
+            assert status == 200 and operations_answer["availability"] == "FALLBACK"
+            assert (
+                operations_answer["evidence"]
+                and operations_answer["audit"]["failure_category"] == "MISSING_API_KEY"
+            )
+            assert (
+                request(
+                    "/api/assistant/ask?tenant_id=other",
+                    "POST",
+                    {"question": "What needs attention?"},
+                    tokens["brightline"],
+                )[0]
+                == 403
+            )
             pilot_batch = {"events": [event("pilot-file-smoke")]}
             status, preview, _ = request(
                 "/api/imports/preview?format=json",

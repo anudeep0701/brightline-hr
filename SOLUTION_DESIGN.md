@@ -52,9 +52,9 @@ One Vercel Services project builds Next.js and FastAPI independently, routing `/
 
 # AI Usage
 
-I use OpenAI to prioritize known facts into incident/recovery summaries, suggest investigation checks and surface a likely issue category. Request error categorization itself remains deterministic; AI selects only categories supported by those observations, not classifications of arbitrary raw error text.
+I use OpenAI for workspace questions, selected integration/incident investigation, and incident/recovery briefs. It prioritizes known facts and read-only checks; briefs also surface a supported issue category. Request error categorization itself remains deterministic; AI selects only categories supported by those observations, not classifications of arbitrary raw error text.
 
-Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. No tools execute operational actions. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
+Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. Evidence is retrieved under the existing tenant authorization before the model is called. Telemetry is untrusted data, never instructions; raw messages, employee details and credentials are omitted, labels sanitized, and out-of-scope/action requests declined. There are no SQL, network or mutation tools. The operator decides what to do. Bounded questions/context/output, brief persistence and short-lived answer caching limit cost; in-process throttling is best-effort across serverless workers. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
 
 # Trade-offs
 

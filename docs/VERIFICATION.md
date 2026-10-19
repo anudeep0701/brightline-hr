@@ -1,5 +1,12 @@
 # Verification record
 
+## Local-first OpenAI follow-up — 2026-10-19
+
+- Tested the user-started local application first, using its existing workspace authentication and configuration. No environment file or API secret was inspected. Local probes passed; uncached investigation returned `AUTHENTICATION_ERROR`, requested model `gpt-6-luna`, in 346–489 ms. Current health and incident displays remained unchanged.
+- Repeated the same question on Vercel afterward: `AUTHENTICATION_ERROR` in 973 ms, deterministic fallback, unchanged snapshots/incidents. The failure affects both configurations; a Vercel-only explanation is insufficient.
+- The existing safe diagnostics are now rendered under **AI evidence and provenance**, with no credential or provider-message exposure. **47 frontend tests**, frontend lint, TypeScript and an isolated production build passed. The unchanged backend remains covered by the preceding 380-test verification. Live OpenAI success is still unverified.
+
+
 ## Hosted OpenAI verification — 2026-10-19
 
 - OpenAI Python SDK 2.54.0 and `responses.parse(text_format=GroundedPlan)` are compatible. An actual-SDK offline HTTP test verifies strict structured request/response parsing with `gpt-6-luna`, `reasoning.effort=none` and `store=False`.

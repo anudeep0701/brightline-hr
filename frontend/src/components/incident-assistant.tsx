@@ -37,6 +37,15 @@ function Audit({ audit }: { audit?: AIAudit | null }) {
           {audit.current_evidence_status} ·{" "}
           {audit.fallback_used ? "Deterministic fallback used" : audit.model}
         </p>
+        {(audit.failure_category || audit.requested_model) && (
+          <p>
+            AI request:{" "}
+            {audit.failure_category?.replaceAll("_", " ") ?? "Completed"}
+            {audit.requested_model &&
+              ` · Requested model ${audit.requested_model}`}
+            {audit.duration_ms != null && ` · ${audit.duration_ms} ms`}
+          </p>
+        )}
         <p>
           Integration {audit.integration_id} · Tenant {audit.tenant_id}
         </p>

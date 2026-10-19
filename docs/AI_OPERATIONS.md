@@ -120,3 +120,5 @@ additional service or environment-file change is needed. Local tests use the act
 SDK against an offline HTTP transport, not production mock output.
 
 For this recorded authentication failure, verify that the existing OpenAI Platform key is active. In Vercel, `OPENAI_API_KEY` must be the complete secret value only, without quotes, an assignment or a `Bearer` prefix. Confirm Production scope and redeploy latest main. Do not paste the value into logs, source control or support conversations. Successful verification requires `fallback_used=false` and an OpenAI model in provenance; HTTP 200 alone is insufficient because fallback also returns 200.
+
+Local follow-up verification used the running authenticated application without reading environment files. An uncached investigation also returned `AUTHENTICATION_ERROR` with requested model `gpt-6-luna` (346–489 ms); the subsequent Vercel request returned the same category (973 ms). This is not a Vercel-only failure. The provenance panel now displays the existing safe category, requested model and duration. Health and incident state remained unchanged.

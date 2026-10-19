@@ -148,6 +148,9 @@ export type AIAudit = {
   generated_at: string;
   model: string | null;
   fallback_used: boolean;
+  failure_category?: string | null;
+  requested_model?: string | null;
+  duration_ms?: number | null;
   evidence_digest: string;
   topic: string;
   selected_fact_ids: string[];

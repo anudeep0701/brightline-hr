@@ -486,3 +486,35 @@ test("operational text has readable defaults and visible keyboard focus", () => 
   assert.match(css, /--text-sm: 1rem/);
   assert.match(css, /focus-visible/);
 });
+
+test("AI provenance displays safe provider diagnostics without replacing the health reason", () => {
+  const html = render(IncidentAssistant, {
+    detail: {
+      integration: row("unhealthy").integration,
+      snapshot: row("unhealthy").snapshot,
+      enrichment: {
+        source: "deterministic",
+        audit: {
+          fallback_used: true,
+          failure_category: "AUTHENTICATION_ERROR",
+          requested_model: "gpt-6-luna",
+          duration_ms: 125,
+          health_state: "UNHEALTHY",
+        },
+        report: {
+          summary: "Observed request evidence",
+          likely_issue_category: "unknown",
+          what_changed: "Known window comparison",
+          confidence: 0,
+          suggested_checks: ["Inspect existing evidence"],
+        },
+      },
+    },
+    operator: true,
+  });
+  assert.match(html, /AUTHENTICATION ERROR/);
+  assert.match(html, /Requested model gpt-6-luna/);
+  assert.match(html, /125 ms/);
+  assert.match(html, /Observed request evidence/);
+  assert.match(html, /Deterministic fallback used/);
+});

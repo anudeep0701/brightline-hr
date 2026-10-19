@@ -130,8 +130,9 @@ export function DemoGuide({
             {refreshing ? "Refreshing demo…" : "Refresh demo data"}
           </button>
           <p className="mt-2 text-sm text-slate-600">
-            Demo only: generate bounded synthetic requests, then evaluate.
-            “Evaluate now” evaluates existing traffic.
+            Demo only: load missing scenario integrations and generate bounded
+            synthetic requests, then evaluate. “Evaluate now” evaluates existing
+            traffic.
           </p>
           {message && (
             <p className="mt-2 text-sm" role={failed ? "alert" : "status"}>

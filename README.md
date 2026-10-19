@@ -149,7 +149,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm --prefix frontend run dev
 
 Replay uses temporary SQLite. Focused choices: `healthy`, `authentication-outage`, `latency-degradation`, `complete-outage`, `recovery`. AI is disabled unless `--enable-ai` is supplied with an exported key. Clear workspace access if its token belongs to another database.
 
-Local seeded data ages normally; regenerate before presenting. Hosted demo sessions refill stale synthetic feeds with bounded current-time events through normal ingestion and evaluation. **Refresh demo data** explicitly repeats that flow; **Evaluate now** only evaluates existing telemetry. Deliberately stale scenarios and imported/live evidence are preserved. Sustained degradation can finish UNHEALTHY; earlier transitions remain visible. See [the four-minute walkthrough](docs/PRODUCT_WALKTHROUGH.md).
+Local seeded data ages normally; regenerate before presenting. Hosted demo sessions refill stale synthetic feeds with bounded current-time events through normal ingestion and evaluation. **Refresh demo data** also registers any missing integrations from the fixed assessment scenario catalog, preserving existing policies, then repeats that flow; **Evaluate now** only evaluates existing telemetry. Deliberately stale scenarios and imported/live evidence are preserved. Sustained degradation can finish UNHEALTHY; earlier transitions remain visible. See [the four-minute walkthrough](docs/PRODUCT_WALKTHROUGH.md).
 
 ## Ingestion and evaluation
 

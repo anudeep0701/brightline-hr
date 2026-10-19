@@ -8,6 +8,7 @@ from app.health.service import bucket_for
 from app.ingestion.service import ingest
 from app.models.entities import Incident, Integration, RequestEvent, Snapshot
 from app.services.demo_data import clear_demo_imports, refresh_demo_data
+from app.services.errors import ServiceError
 from sqlalchemy import func, select
 from tests.test_demo_access import connect
 from tests.test_demo_access import demo as demo
@@ -351,3 +352,50 @@ def test_bulk_path_preserves_validation_deduplication_and_normalized_values(db):
         "error_category",
     ]:
         assert getattr(a, field) == getattr(b, field)
+
+
+def test_explicit_refresh_populates_curated_scenarios_without_overwriting_policy(
+    demo, db
+):
+    connect(demo)
+    original = db.get(Integration, ("a", "payroll"))
+    original.config.min_requests = 25
+    db.commit()
+    result = demo.post("/api/demo/refresh")
+    assert result.status_code == 200
+    items = {
+        item["integration"]["id"]: item
+        for item in demo.get("/api/v1/dashboard").json()["integrations"]
+    }
+    assert len(items) == 9
+    assert items["adp-payroll"]["snapshot"]["status"] == "DEGRADED"
+    assert items["slack-notifications"]["snapshot"]["status"] == "UNHEALTHY"
+    assert items["twilio-notifications"]["snapshot"]["status"] == "UNKNOWN"
+    assert db.get(Integration, ("a", "payroll")).config.min_requests == 25
+    assert (
+        len(list(db.scalars(select(Integration).where(Integration.tenant_id == "b"))))
+        == 1
+    )
+    before = count(db)
+    assert demo.post("/api/demo/refresh").json()["accepted"] == 0
+    assert count(db) == before
+
+
+def test_scenario_population_requires_demo_and_obeys_capacity(demo, db, monkeypatch):
+    connect(demo)
+    for index in range(5):
+        db.add(
+            Integration(
+                tenant_id="a",
+                id=f"custom-{index}",
+                name="Custom",
+                category="Other",
+                owner="Ops",
+            )
+        )
+    db.commit()
+    assert demo.post("/api/demo/refresh").status_code == 409
+    assert db.get(Integration, ("a", "slack-notifications")) is None
+    monkeypatch.setattr(get_settings(), "demo_mode", False)
+    with pytest.raises(ServiceError, match="configured demo workspace"):
+        refresh_demo_data(db, get_settings(), populate=True)

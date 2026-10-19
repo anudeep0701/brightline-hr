@@ -20,6 +20,30 @@ MAX_INTEGRATIONS = 12
 EVENTS_PER_INTEGRATION = 96
 MAX_DEMO_IMPORTS = 3000
 
+# Fixed assessment fixtures only; these never participate in health classification.
+DEMO_INTEGRATIONS = (
+    ("workday-payroll", "Workday Payroll", "payroll", "Payroll operations", 1200),
+    ("adp-payroll", "ADP Payroll", "payroll", "Payroll operations", 1000),
+    ("docusign", "DocuSign", "e_signature", "People operations", 1500),
+    ("greenhouse-ats", "Greenhouse ATS", "ats", "Talent operations", 1000),
+    ("okta-directory", "Okta Directory Sync", "directory_sync", "IT operations", 800),
+    (
+        "slack-notifications",
+        "Slack Notifications",
+        "notifications",
+        "People operations",
+        800,
+    ),
+    (
+        "twilio-notifications",
+        "Twilio Notifications",
+        "notifications",
+        "People operations",
+        1000,
+    ),
+    ("adp-recovery", "ADP Payroll (Recovery)", "payroll", "Payroll operations", 1000),
+)
+
 
 def require_demo(settings):
     if not settings.demo_mode or not settings.demo_tenant_slug:
@@ -52,7 +76,7 @@ def clear_demo_imports(db, settings):
     return result.rowcount
 
 
-def refresh_demo_data(db, settings, *, now=None, force=False):
+def refresh_demo_data(db, settings, *, now=None, force=False, populate=False):
     tenant_id = require_demo(settings)
     now = utc(now or datetime.now(timezone.utc))
     tenant = db.scalar(select(Tenant).where(Tenant.id == tenant_id).with_for_update())
@@ -68,6 +92,27 @@ def refresh_demo_data(db, settings, *, now=None, force=False):
             .limit(MAX_INTEGRATIONS + 1)
         )
     )
+    if populate:
+        present = {integration.id for integration in integrations}
+        missing = [spec for spec in DEMO_INTEGRATIONS if spec[0] not in present]
+        if len(integrations) + len(missing) > MAX_INTEGRATIONS:
+            raise ServiceError(
+                409,
+                "demo_capacity",
+                "Demo scenario catalog exceeds the 12-integration limit",
+            )
+        for identity, name, category, owner, target in missing:
+            integration = Integration(
+                tenant_id=tenant_id,
+                id=identity,
+                name=name,
+                category=category,
+                owner=owner,
+                latency_target_ms=target,
+            )
+            db.add(integration)
+            integrations.append(integration)
+        db.flush()
     if len(integrations) > MAX_INTEGRATIONS:
         raise ServiceError(
             409,

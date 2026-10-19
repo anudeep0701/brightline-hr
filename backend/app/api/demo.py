@@ -198,4 +198,4 @@ def create_demo_session(
 def refresh_demo(request: Request, db: Session = Depends(get_db)):
     settings = get_settings()
     authorize_demo(request, db, settings)
-    return refresh_demo_data(db, settings, force=True)
+    return refresh_demo_data(db, settings, force=True, populate=True)

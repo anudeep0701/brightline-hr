@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     )
     cron_secret: str = ""
     cors_allowed_origins: str = ""
+    demo_mode: bool = False
+    demo_tenant_slug: str = ""
+    demo_session_secret: str = Field(default="", repr=False)
 
     @property
     def cors_origins(self) -> list[str]:
@@ -45,6 +48,18 @@ class Settings(BaseSettings):
             raise ValueError(
                 "DATABASE_URL must use PostgreSQL (or explicit demo/test SQLite)"
             )
+
+        if self.demo_mode:
+            if not self.demo_tenant_slug.strip():
+                raise ValueError("DEMO_MODE requires DEMO_TENANT_SLUG")
+            if len(self.demo_session_secret) < 32:
+                raise ValueError(
+                    "DEMO_MODE requires DEMO_SESSION_SECRET of at least 32 characters"
+                )
+            if self.demo_session_secret == self.cron_secret:
+                raise ValueError(
+                    "DEMO_SESSION_SECRET must be independent of CRON_SECRET"
+                )
 
         if os.getenv("VERCEL") and self.app_env != "production":
             raise ValueError(

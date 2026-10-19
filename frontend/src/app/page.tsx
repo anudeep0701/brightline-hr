@@ -21,6 +21,7 @@ import { OperationalImpact } from "@/components/operational-impact";
 import { Trend } from "@/components/trend";
 import { api, percent, ms, time, typeName, setTenant } from "@/lib/api";
 import { useResource } from "@/lib/use-resource";
+import { useDemoAccess } from "@/lib/demo-context";
 import {
   compareCurrentPriority,
   currentEvidenceState,
@@ -31,6 +32,7 @@ import {
 import type { Dashboard, Status, Workspace } from "@/types";
 
 export default function Page() {
+  const demo = useDemoAccess();
   const [scope, setScope] = useState(0);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -345,9 +347,13 @@ export default function Page() {
             </section>
           )}
           {!!items.length && dashboard && (
-            <OperationalImpact dashboard={dashboard} counts={counts} />
+            <OperationalImpact
+              dashboard={dashboard}
+              counts={counts}
+              demoWorkspace={demo}
+            />
           )}
-          {workspace?.mode === "demo" && <DemoGuide items={items} />}
+          {(demo || workspace?.mode === "demo") && <DemoGuide items={items} />}
           {!!items.length && (
             <h2 className="mb-3 text-sm font-semibold">Fleet at a glance</h2>
           )}

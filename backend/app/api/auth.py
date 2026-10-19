@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.api.demo import COOKIE_NAME, authorize_demo
 from app.config import get_settings
 from app.db.session import get_db
 from app.ingestion.credentials import KEY_PREFIX, authenticate_key
@@ -21,6 +22,7 @@ bearer = HTTPBearer(
 class Principal:
     tenant_id: str
     role: str
+    demo: bool = False
 
 
 def principal(
@@ -28,8 +30,15 @@ def principal(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ):
+    if credentials is None and "authorization" not in request.headers:
+        settings = get_settings()
+        if settings.demo_mode and request.cookies.get(COOKIE_NAME):
+            return Principal(
+                authorize_demo(request, db, settings), "operator", demo=True
+            )
     if (
         credentials is None
+        and not get_settings().demo_mode
         and get_settings().app_env == "demo"
         and db.get_bind().dialect.name == "sqlite"
         and "authorization" not in request.headers
@@ -81,7 +90,8 @@ def ingestion_principal(
 ):
     if credentials is None:
         if (
-            get_settings().app_env == "demo"
+            not get_settings().demo_mode
+            and get_settings().app_env == "demo"
             and db.get_bind().dialect.name == "sqlite"
             and "authorization" not in request.headers
         ):

@@ -3,10 +3,13 @@ import type { Dashboard, Status } from "@/types";
 export function OperationalImpact({
   dashboard,
   counts,
+  demoWorkspace = false,
 }: {
   dashboard: Dashboard;
   counts: Record<Status, number>;
+  demoWorkspace?: boolean;
 }) {
+  const demo = demoWorkspace || dashboard.mode === "demo";
   const impact = dashboard.operational_impact;
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
   const duration = impact.mean_confirmed_incident_duration_seconds;
@@ -41,7 +44,7 @@ export function OperationalImpact({
     <section className="card mb-6 p-5" aria-labelledby="impact-title">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="impact-title" className="text-sm font-semibold">
-          {dashboard.mode === "demo"
+          {demo
             ? "Demo / simulated operational impact"
             : "Observed operational impact"}
         </h2>
@@ -49,7 +52,7 @@ export function OperationalImpact({
           Tenant-wide · Last 24h incident outcomes
         </span>
       </div>
-      {dashboard.mode === "demo" && (
+      {demo && (
         <p className="mb-4 text-xs leading-5 text-slate-600">
           Calculated from synthetic request traffic and confirmed incidents.
           These demonstrate operational outcomes; production MTTD requires an
@@ -70,9 +73,7 @@ export function OperationalImpact({
         refresh, {impact.stale_or_absent_integrations} had stale or absent
         telemetry or overdue evaluations. Incident duration measures confirmed
         system state, not verified customer impact.
-        {dashboard.mode === "demo"
-          ? " Demo outcomes are not customer ROI."
-          : ""}
+        {demo ? " Demo outcomes are not customer ROI." : ""}
       </p>
     </section>
   );

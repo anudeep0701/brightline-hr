@@ -73,6 +73,9 @@ Set these project environment variables for each intended deployment environment
 | `NEXT_PUBLIC_API_BASE_URL` | Leave unset for this deployment; production uses the current browser origin |
 | `CORS_ALLOWED_ORIGINS` | Leave unset; same-origin production grants no cross-origin browser access |
 | `PGPASSWORD` | Not required; only used by optional local Docker Compose |
+| `DEMO_MODE` | Default `false`; set `true` only for the public synthetic assessment |
+| `DEMO_TENANT_SLUG` | Existing demo tenant ID (`brightline`), required when demo mode is enabled |
+| `DEMO_SESSION_SECRET` | Independent random signing secret of at least 32 characters; backend-only, required in demo mode |
 
 Services share project variables. This is not a per-service secret boundary: trusted Next.js server/build code can also see project secrets. The frontend references no backend credentials, and only `NEXT_PUBLIC_` values are bundled for the browser. Never rename a secret with that prefix. Use separate projects if separate service trust/administration becomes a requirement.
 
@@ -94,6 +97,20 @@ A missing backend route returns the backend's 404; it does not fall through to N
 Workspace reader/operator authorization, tenant scoping, ingestion-only keys and cron authorization remain independent. CORS is not authentication. External exporters can POST to `https://<app-domain>/api/ingest` with their ingestion key. If Vercel Deployment Protection is enabled, configure approved exporter access as well as application authorization; do not make a protected preview the production ingestion target.
 
 Local `npm run dev` still starts ports 3000 and 8000 and configures exact localhost CORS. An explicit local API override remains supported. Do not carry a localhost API override into the Vercel production build.
+
+### Hosted assessment access
+
+For the existing case-study Vercel project, open **Settings → Environment Variables** and add `DEMO_MODE=true`, `DEMO_TENANT_SLUG=brightline` and `DEMO_SESSION_SECRET` for **Production**. Generate the signing value in a password manager (at least 32 random characters); use a different value from `CRON_SECRET`. Keep `APP_ENV=production` and existing database/AI/cron variables. Do not add a public API URL or any `NEXT_PUBLIC_` secret. Redeploy after saving the variables. Never enable this mode against customer telemetry: the configured workspace's evidence and AI assistance become publicly accessible.
+
+The `brightline` tenant and its synthetic integrations/events must already exist in the dedicated assessment database. The session endpoint never creates or seeds data. Missing tenant/signing configuration fails startup; a nonexistent tenant returns a safe unavailable response. Tenant selection is server configuration, not a request parameter.
+
+On entry, the frontend reads `GET /api/demo/session`, then calls `POST /api/demo/session` only when enabled. The server sets a signed `__Host-brightline_demo` cookie with **HttpOnly, Secure, SameSite=Lax**, `Path=/` and a one-hour lifetime. Responses contain only workspace metadata and expiry, never a workspace bearer token or signing value. Signing uses domain-separated HMAC-SHA256 with no session table or third-party authentication service. Every request rechecks the configured tenant and expiry. Changing the secret invalidates all sessions; disabling demo mode stops cookie access. Individual session revocation is intentionally not implemented.
+
+The page renews sessions every 20 minutes while visible; an expired request gets one renewal/retry, without redirects. Refreshing the page opens the same configured workspace automatically. These cookies require HTTPS in hosted use; local browser validation uses localhost's secure-cookie support. Cross-site writes are rejected through origin checks and a required custom request header. Production grants no cross-origin demo access.
+
+Demo access permits health/integration/metric/incident reads, Data Sources inspection, grounded AI briefs/questions and tenant-scoped **Evaluate now**. A server-side capability allowlist rejects imports, log writes, policy changes and credential/admin operations. It does not grant `/api/ingest` or cron access. Existing ingestion keys and workspace bearers retain their independent authorization. The local launcher strips the signing secret from the frontend process; the frontend never references it. In Vercel Services, project variables remain shared with trusted build/server processes, but are not browser configuration.
+
+When `DEMO_MODE` is false, the session endpoint cannot issue a cookie, existing demo cookies confer no access, and the hosted UI retains **Workspace access**. Real customer deployments should leave all demo settings unset. Existing credential-free local SQLite demo behavior remains a separate local-only workflow.
 
 ## 4. Scheduled evaluation
 

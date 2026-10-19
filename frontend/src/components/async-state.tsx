@@ -1,3 +1,6 @@
+"use client";
+import { useDemoAccess } from "@/lib/demo-context";
+
 export function ErrorNotice({
   message,
   retained,
@@ -7,6 +10,7 @@ export function ErrorNotice({
   retained?: boolean;
   retry: () => void;
 }) {
+  const demo = useDemoAccess();
   return (
     <div
       role="alert"
@@ -18,7 +22,9 @@ export function ErrorNotice({
         <p className="mt-1 text-xs">
           {retained
             ? "Showing the last fetched evidence. Check evaluation timestamps before acting."
-            : "Check the backend connection or connect a workspace token using Workspace access."}
+            : demo
+              ? "Retry to reconnect the demo workspace. If this persists, reload the page or ask the deployment owner to check demo setup."
+              : "Check the backend connection or connect a workspace token using Workspace access."}
         </p>
       </div>
       <button className="button-secondary" onClick={retry}>

@@ -18,6 +18,9 @@ const configNames = [
   "CORS_ALLOWED_ORIGINS",
   "NEXT_PUBLIC_API_BASE_URL",
   "PGPASSWORD",
+  "DEMO_MODE",
+  "DEMO_TENANT_SLUG",
+  "DEMO_SESSION_SECRET",
 ];
 
 export function developmentEnvironment(environment, read = readFileSync) {
@@ -84,6 +87,9 @@ export function frontendEnvironment(environment) {
     "OPENAI_MODEL",
     "CRON_SECRET",
     "PGPASSWORD",
+    "DEMO_MODE",
+    "DEMO_TENANT_SLUG",
+    "DEMO_SESSION_SECRET",
   ]) {
     delete result[name];
   }

@@ -6,6 +6,8 @@ The overview prioritizes issues and evidence gaps; integration details explain d
 
 This is an FDE case-study MVP. Its seeded outcomes demonstrate the workflow; they are not production results or customer ROI.
 
+The hosted assessment can open directly into a synthetic Brightline demo workspace, without copying a workspace token. This explicit demo mode grants a short-lived, tenant-scoped browser session. Customer deployments keep workspace authentication; demo mode is off by default. See [hosted demo setup](docs/CREDENTIALS_AND_DEPLOYMENT.md#hosted-assessment-access).
+
 ## Design decisions
 
 - **Health is deterministic.** A configurable policy combines errors, timeouts, latency, volume and freshness. Good latency cannot cancel high errors. Snapshots retain metrics, policy evidence and reasons.
@@ -98,7 +100,7 @@ Migrations are transactional and digest-checked; unchanged applied versions are 
 
 Save the token privately, then paste it into **Workspace access → Workspace bearer token → Connect**, without `Bearer`. Browser memory only; refresh clears it. Plaintext cannot be retrieved later.
 
-For `brightline`, `npm run demo:access` issues a demo workspace token using root configuration. It does not seed. PostgreSQL always requires authentication, including in demo mode; local SQLite demo access is credential-free.
+For local `brightline` access, `npm run demo:access` issues a workspace token using root configuration. It does not seed. PostgreSQL requires authentication; the optional hosted assessment mode below uses a scoped browser session instead of a manually entered token. Local SQLite demo access remains credential-free.
 
 ## Environment variables
 
@@ -114,6 +116,9 @@ The local Node launchers load root `.env`, then `.env.local`; nonempty exported 
 | `OPENAI_MODEL` | Optional backend-only model ID; configured default: `gpt-6-luna`. Requires model access in the API project. |
 | `CRON_SECRET` | Independent random secret, at least 32 characters for production. Authorizes scheduled evaluation; unnecessary for local demo use. |
 | `PGPASSWORD` | Used only by the optional local PostgreSQL Docker Compose setup. Not required by the deployed application. |
+| `DEMO_MODE` | Default `false`. Enable explicitly only for a public synthetic assessment. |
+| `DEMO_TENANT_SLUG` | Existing synthetic tenant ID, usually `brightline`; required when demo mode is enabled. |
+| `DEMO_SESSION_SECRET` | Independent backend-only random signing value, 32+ characters; required when demo mode is enabled. Never a public variable. |
 
 Environment files, keys and local databases are ignored by Git. The root development launcher removes backend credentials from the frontend process.
 
@@ -231,6 +236,8 @@ Import the Git repository once. Keep project-level build/install/output override
 Vercel discovers `backend/requirements.txt`, which pins only runtime dependencies. Leave the backend install override unset so Vercel can optimize its Python bundle. Local setup uses `backend/requirements-dev.txt` for tests, synthetic generation and development tools. Test configuration lives in `backend/pytest.ini`; there is no competing Python project manifest. Service-scoped exclusions keep tests, caches and local databases out of the function. Polars remains in production because live health aggregation uses it.
 
 Set project variables `DATABASE_URL`, `APP_ENV=production` and a 32+ character `CRON_SECRET`. Optional AI uses `OPENAI_API_KEY` and `OPENAI_MODEL`. Leave `NEXT_PUBLIC_API_BASE_URL` and `CORS_ALLOWED_ORIGINS` unset for same-origin production. Project variables are shared by services; only Python code consumes backend credentials, and no secret uses a `NEXT_PUBLIC_` name.
+
+For the public synthetic assessment only, also set `DEMO_MODE=true`, `DEMO_TENANT_SLUG=brightline` and an independent random `DEMO_SESSION_SECRET` of at least 32 characters. The tenant must already exist. Demo sessions expire after one hour and renew while the page is visible. They allow observation, evaluation and advisory AI; they cannot upload telemetry, change policy or administer credentials. Use a dedicated synthetic database, never a customer database. `.env.example` contains blank placeholders; production customer deployments should leave demo mode disabled.
 
 `/api/*`, probes, `/docs`, `/redoc` and `/openapi.json` route to FastAPI without stripping prefixes. Other paths, including Next.js assets, route to the frontend. Existing workspace and ingestion bearer authentication still applies. The frontend makes no proxy API handlers and contains no Python business logic.
 

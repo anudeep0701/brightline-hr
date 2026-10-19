@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveApiGuide } from "@/components/live-api-guide";
 import { UploadCloud } from "lucide-react";
 import { Shell } from "@/components/shell";
+import { useDemoAccess } from "@/lib/demo-context";
 import { ErrorNotice, LoadingState } from "@/components/async-state";
 import { api, setTenant, time, uploadFile } from "@/lib/api";
 import { ingestionStatus, sourceName, uploadFormat } from "@/lib/onboarding";
@@ -17,6 +18,7 @@ import type {
 } from "@/types";
 
 export default function DataSourcesPage() {
+  const demo = useDemoAccess();
   const [scope, setScope] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<UploadPreview | null>(null);
@@ -132,7 +134,7 @@ export default function DataSourcesPage() {
       if (!current.signal.aborted) setBusy("");
     }
   }
-  const operator = data?.workspace.role === "operator";
+  const operator = !demo && data?.workspace.role === "operator";
   const errors = preview?.validation_errors ?? result?.validation_errors ?? [];
   return (
     <Shell
@@ -263,8 +265,9 @@ export default function DataSourcesPage() {
             </div>
             {!operator && (
               <p className="text-xs text-slate-500">
-                Connect an operator workspace token to validate or import.
-                Ingestion keys are for the production API only.
+                {demo
+                  ? "Demo access shows the onboarding flow and observed sources. Importing logs requires an authenticated customer workspace; the shared demo cannot accept uploads."
+                  : "Connect an operator workspace token to validate or import. Ingestion keys are for the production API only."}
               </p>
             )}
             {preview && (

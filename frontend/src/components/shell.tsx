@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { setToken } from "@/lib/api";
+import { useDemoAccess } from "@/lib/demo-context";
 export function Shell({
   children,
   onAuth,
@@ -20,6 +21,7 @@ export function Shell({
   tenantName?: string;
 }) {
   const dataSourcesActive = usePathname() === "/data-sources";
+  const demo = useDemoAccess();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   return (
@@ -60,13 +62,19 @@ export function Shell({
             <ShieldCheck size={16} />
             Evidence-based decisions
           </div>
-          <button
-            onClick={() => setEditing(!editing)}
-            className="flex items-center gap-2 text-xs font-medium text-ink"
-          >
-            <KeyRound size={15} />
-            Workspace access <ArrowUpRight size={12} />
-          </button>
+          {demo ? (
+            <span className="text-xs font-medium text-teal">
+              Demo workspace · Synthetic telemetry
+            </span>
+          ) : (
+            <button
+              onClick={() => setEditing(!editing)}
+              className="flex items-center gap-2 text-xs font-medium text-ink"
+            >
+              <KeyRound size={15} />
+              Workspace access <ArrowUpRight size={12} />
+            </button>
+          )}
         </div>
       </aside>
       <div className="min-w-0 lg:col-start-2">
@@ -81,7 +89,7 @@ export function Shell({
             Observe · Advise · Human acts
           </span>
         </header>
-        {editing && (
+        {editing && !demo && (
           <form
             onSubmit={(e) => {
               e.preventDefault();

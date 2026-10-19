@@ -1,5 +1,16 @@
 # Verification record
 
+## Scoped hosted demo access — 2026-10-18
+
+- Added explicit opt-in `DEMO_MODE`, required configured `DEMO_TENANT_SLUG` and independent `DEMO_SESSION_SECRET`. Defaults preserve hosted workspace bearer authentication. No schema migration or dependency was added.
+- The browser opens a server-issued, signed one-hour HttpOnly/Secure/SameSite cookie; no workspace token is issued or returned. Sessions renew while the page is visible and retry once after expiry. Every cookie request revalidates tenant, signature, expiry and an explicit capability allowlist. Origin/custom-header checks protect demo writes, including when TLS terminates before ASGI.
+- Demo users can observe the configured workspace, evaluate its health and request scoped advisory assistance. Tenant switching, uploads/log ingestion, policy changes, credential/admin operations and cron access are unavailable. Exporter-key and bearer authorization remain independent. Session/key rotation, disabling mode, missing configuration and nonexistent tenants fail closed.
+- **348 backend tests passed**, including **36 new demo-session security cases**. **42 frontend tests** and **14 launcher/deployment tests passed**. Tests cover expiry/reuse, tampering, cross-tenant reads/AI/evaluation, cookie attributes, CSRF, TLS termination, credential separation, API renewal/failure, demo labels and normal local CORS behavior.
+- Ruff F/I, frontend lint, TypeScript and isolated production Next.js build passed. The build used a synthetic signing canary and verified that neither it nor `DEMO_SESSION_SECRET` appears in browser assets. Production backend import/startup passed without a real database connection. A clean Linux/Python 3.12 production-only runtime passed both existing API functionality and the new session flow.
+- Existing HTTP smoke passed with **18,571 synthetic events**, covering ingestion/partial validation/idempotency, workspace boundaries, incident lifecycle/recovery, all health states, AI fallback, file onboarding and restart.
+- Actual browser checks against the production frontend and disposable same-origin backends passed anonymous demo entry, locked tenant selection, page refresh, operator evaluation, detail, AI brief/copilot fallback and read-only Data Sources. Demo console error checks were empty. With demo mode disabled, anonymous access was rejected and the preserved Workspace access form accepted a disposable test token. Hosted demo outcomes and scenario exploration remain visible under `APP_ENV=production`.
+- Documentation and blank example variables were updated; no real environment file, hosted database or OpenAI API was accessed. A dedicated synthetic assessment database and manual Vercel environment configuration are still required to activate public access. Git and hosted deployment outcomes are reported separately.
+
 ## Python deployment bundle reduction — 2026-10-18
 
 - Split pinned runtime requirements from local test, synthetic-generation, lint and server tooling. Removed the stale combined lock/range manifest; moved unchanged pytest configuration to `backend/pytest.ini` to avoid a competing dependency-free project manifest. CI and local setup use `requirements-dev.txt`.

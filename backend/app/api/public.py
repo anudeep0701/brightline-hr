@@ -201,6 +201,7 @@ def workspace(request: Request, user: Reader, db: Db, tenant_id: TenantFilter = 
         user.role,
         settings.app_env,
         settings.app_env == "demo"
+        and not user.demo
         and db.get_bind().dialect.name == "sqlite"
         and not request.headers.get("authorization"),
     )

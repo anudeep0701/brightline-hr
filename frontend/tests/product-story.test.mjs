@@ -378,3 +378,61 @@ test("detail tells the deterministic-to-AI story and reports actual recovery evi
     /Operator investigations and customer-impact times are not recorded/,
   );
 });
+
+test("demo workspace is labeled and hides bearer entry while real workspace access remains", () => {
+  const { DemoAccessContext } = load(path.join(src, "lib/demo-context.ts"));
+  const { Shell } = load(path.join(src, "components/shell.tsx"));
+  const component = React.createElement(
+    Shell,
+    { onAuth: () => {}, tenantName: "Brightline HR" },
+    "Evidence",
+  );
+  const demo = renderToStaticMarkup(
+    React.createElement(DemoAccessContext.Provider, { value: true }, component),
+  );
+  assert.match(demo, /Demo workspace · Synthetic telemetry/);
+  assert.doesNotMatch(demo, /Workspace access|Paste workspace token/);
+  assert.match(renderToStaticMarkup(component), /Workspace access/);
+});
+
+test("demo onboarding explains why shared telemetry cannot be modified", () => {
+  const { DemoAccessContext } = load(path.join(src, "lib/demo-context.ts"));
+  resource = {
+    data: {
+      workspace: { ...workspace, can_switch_tenants: false },
+      sources: { items: [] },
+    },
+    reload: () => {},
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(
+      DemoAccessContext.Provider,
+      { value: true },
+      React.createElement(DataSources),
+    ),
+  );
+  assert.match(html, /shared demo cannot accept uploads/);
+  assert.match(html, /disabled=""/);
+  assert.doesNotMatch(html, /Connect an operator workspace token to validate/);
+});
+
+test("production-hosted demo still labels synthetic outcomes and offers scenario exploration", () => {
+  const { DemoAccessContext } = load(path.join(src, "lib/demo-context.ts"));
+  dashboard([row("unhealthy")]);
+  resource.data.workspace = {
+    ...workspace,
+    mode: "production",
+    can_switch_tenants: false,
+  };
+  resource.data.dashboard.mode = "production";
+  const html = renderToStaticMarkup(
+    React.createElement(
+      DemoAccessContext.Provider,
+      { value: true },
+      React.createElement(Dashboard),
+    ),
+  );
+  assert.match(html, /Demo \/ simulated operational impact/);
+  assert.match(html, /Explore demo scenario/);
+  assert.match(html, /Demo outcomes are not customer ROI/);
+});

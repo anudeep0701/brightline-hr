@@ -62,6 +62,9 @@ test("frontend child receives public configuration without backend secrets", () 
     OPENAI_MODEL: "gpt-6-luna",
     CRON_SECRET: "private",
     PGPASSWORD: "private",
+    DEMO_MODE: "true",
+    DEMO_TENANT_SLUG: "brightline",
+    DEMO_SESSION_SECRET: "private-demo-signing",
     PATH: "path",
   };
   const browser = frontendEnvironment(environment);
@@ -71,6 +74,9 @@ test("frontend child receives public configuration without backend secrets", () 
     "OPENAI_MODEL",
     "CRON_SECRET",
     "PGPASSWORD",
+    "DEMO_MODE",
+    "DEMO_TENANT_SLUG",
+    "DEMO_SESSION_SECRET",
   ]) {
     assert.equal(Object.hasOwn(browser, name), false);
     assert.equal(Object.hasOwn(environment, name), true);

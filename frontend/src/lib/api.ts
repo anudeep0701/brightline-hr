@@ -10,6 +10,33 @@ function requestUrl(path: string) {
 }
 let accessToken = "";
 let activeTenant = "";
+let demoAccess = false;
+let demoRenewal: Promise<void> | null = null;
+async function renewDemoSession() {
+  if (!demoRenewal) {
+    demoRenewal = fetch(requestUrl("/api/demo/session"), {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "X-Demo-Request": "1" },
+      signal: AbortSignal.timeout(15000),
+    })
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(
+            "Demo session could not be renewed. Retry or reopen the demo workspace.",
+          );
+      })
+      .finally(() => {
+        demoRenewal = null;
+      });
+  }
+  return demoRenewal;
+}
+export function setDemoAccess(enabled: boolean) {
+  demoAccess = enabled;
+  if (enabled) setToken("");
+}
 export function setToken(token: string) {
   accessToken = token.trim();
   activeTenant = "";
@@ -25,18 +52,33 @@ export async function api<T>(
 ): Promise<T> {
   const url = requestUrl(path);
   if (activeTenant) url.searchParams.set("tenant_id", activeTenant);
-  const response = await fetch(url, {
-    method,
-    cache: "no-store",
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
-      : AbortSignal.timeout(15000),
-    headers: {
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(payload !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: payload !== undefined ? JSON.stringify(payload) : undefined,
-  });
+  const send = () =>
+    fetch(url, {
+      method,
+      credentials:
+        demoAccess || (path === "/api/demo/session" && method === "POST")
+          ? "include"
+          : "same-origin",
+      cache: "no-store",
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
+        : AbortSignal.timeout(15000),
+      headers: {
+        ...(demoAccess || path === "/api/demo/session"
+          ? { "X-Demo-Request": "1" }
+          : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(payload !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
+      },
+      body: payload !== undefined ? JSON.stringify(payload) : undefined,
+    });
+  let response = await send();
+  if (response.status === 401 && demoAccess && path !== "/api/demo/session") {
+    await renewDemoSession();
+    response = await send();
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(
@@ -98,6 +140,7 @@ export async function uploadFile<T>(
   if (activeTenant) url.searchParams.set("tenant_id", activeTenant);
   const response = await fetch(url, {
     method: "POST",
+    credentials: demoAccess ? "include" : "same-origin",
     cache: "no-store",
     signal: AbortSignal.any([signal, AbortSignal.timeout(30000)]),
     headers: {

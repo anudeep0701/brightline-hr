@@ -1,5 +1,14 @@
 # Verification record
 
+## Hosted OpenAI verification — 2026-10-19
+
+- OpenAI Python SDK 2.54.0 and `responses.parse(text_format=GroundedPlan)` are compatible. An actual-SDK offline HTTP test verifies strict structured request/response parsing with `gpt-6-luna`, `reasoning.effort=none` and `store=False`.
+- **380 backend tests, 46 frontend tests and 14 deployment/launcher tests passed**, along with Ruff F/I, Python formatting, frontend lint, TypeScript, production build and backend production import/startup with no OpenAI key. Fourteen new diagnostics/SDK cases verify authentication, quota versus transient rate limits, model access, invalid schemas, refusals, incomplete/malformed output and safe logs. CI passed for the code change.
+- The deployed brief and all five representative investigation topics returned `AUTHENTICATION_ERROR`, with requested model `gpt-6-luna`. A fresh repeat confirmed this. The provider credential is configured but is not accepted; no credential value was inspected. No live OpenAI success is claimed.
+- Hosted snapshots/incidents were unchanged; cross-tenant AI access returned 403. Browser rendering retained deterministic/advisory labeling and fallback, with no captured console warnings/errors. Safe audit metadata now includes requested model, failure category and duration; raw exception messages, bodies, prompts and credentials are never logged.
+- Remaining action: validate the active OpenAI Platform credential in Vercel Production, redeploy latest main and repeat Generate brief plus one investigation question. Keep the live-verification limitation until provenance reports an OpenAI model with `fallback_used=false`.
+
+
 ## Final demo hardening — 2026-10-18
 
 - Explicit demo sessions refill stale synthetic feeds with current UTC telemetry through normal validation, ingestion, metrics and incident services. At most 12 integrations and 96 events each per five-minute bucket; stable IDs and a tenant transaction lock prevent repeated/concurrent generation. Existing decisions and timestamps are immutable. Hosted verification found only one registered integration; explicit **Refresh demo data** now completes the fixed scenario catalog, preserving existing integration policies and the tenant/capacity boundaries. Imported/live evidence and intentionally stale scenarios are preserved. **Refresh demo data** generates assessment events; **Evaluate now** evaluates existing evidence only.

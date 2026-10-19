@@ -83,7 +83,7 @@ Generation, synthetic replay and authenticated external ingestion all call the s
 
 New tests cover factual-plan grounding, audit/minimal storage, cache retry/staleness, absent key, timeouts/failures, malformed/hallucinated outputs and action IDs, unchanged health/incidents, every question, previous-healthy insufficiency, selected resolved recovery, cross-tenant/reader restrictions, late old events, and current evidence versus historical state. Frontend tests cover freshness presentation, confidence labels, structured scoped requests and safe request errors. The HTTP smoke workflow exercises brief and recovery fallback through real routes.
 
-Hosted verification currently reaches the configured provider path but returns deterministic fallback; live OpenAI success remains unverified. The failure category must be checked before attributing this to credentials, billing, model access or networking. Operator question answers are transient, brief regeneration is not append-only audit history, and explicit operator calls have bounded request time/output but no new AI quota/rate-limiting subsystem. Those are pilot considerations rather than automatic-action or infrastructure features.
+Hosted verification on 2026-10-19 confirmed `OPENAI_MODEL=gpt-6-luna` and a configured credential, but the provider rejected authentication (`AUTHENTICATION_ERROR`) for the brief and five investigation topics. Live OpenAI success remains unverified. All requests retained deterministic fallback; snapshots/incidents were unchanged and cross-tenant investigation returned 403. The remaining blocker is an accepted server-side OpenAI credential in the Production deployment, not missing model configuration or an observed timeout. Operator question answers are transient, brief regeneration is not append-only audit history, and explicit operator calls have bounded request time/output but no new AI quota/rate-limiting subsystem. Those are pilot considerations rather than automatic-action or infrastructure features.
 
 
 ### Hosted verification and safe diagnostics
@@ -118,3 +118,5 @@ To verify the existing Vercel deployment:
 Only server-side configuration is required; no frontend key/public model variable,
 additional service or environment-file change is needed. Local tests use the actual
 SDK against an offline HTTP transport, not production mock output.
+
+For this recorded authentication failure, verify that the existing OpenAI Platform key is active. In Vercel, `OPENAI_API_KEY` must be the complete secret value only, without quotes, an assignment or a `Bearer` prefix. Confirm Production scope and redeploy latest main. Do not paste the value into logs, source control or support conversations. Successful verification requires `fallback_used=false` and an OpenAI model in provenance; HTTP 200 alone is insufficient because fallback also returns 200.

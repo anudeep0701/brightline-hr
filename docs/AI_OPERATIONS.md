@@ -67,7 +67,7 @@ Run the existing seeded demo and frontend. No key is required:
 .venv/bin/python scripts/run_demo.py --scenario all --tenants 2
 ```
 
-In another terminal, `npm --prefix frontend run dev`. For a real AI demonstration, export the existing OPENAI_API_KEY privately in the backend terminal and opt in with `scripts/run_demo.py --scenario all --enable-ai`; no key still falls back. The root `npm run dev` launcher also forwards an exported backend key normally. No environment file is loaded or edited by these workflows.
+In another terminal, `npm --prefix frontend run dev`. For a real AI demonstration, export the existing OPENAI_API_KEY privately in the backend terminal and opt in with `scripts/run_demo.py --scenario all --enable-ai`; no key still falls back. The root `npm run dev` launcher also forwards an exported backend key normally. The standalone demo script uses process environment; the root launcher loads the developer’s configuration. Neither writes environment files.
 
 1. Open **Workday Payroll (Sustained failures)**. Its history shows HEALTHY → DEGRADED → UNHEALTHY, with a confirmed incident and opening reason.
 2. Generate the AI incident brief. Inspect source facts, model/fallback status and evidence timestamp. If no key is configured, the deterministic explanation remains useful and visible.
@@ -83,4 +83,38 @@ Generation, synthetic replay and authenticated external ingestion all call the s
 
 New tests cover factual-plan grounding, audit/minimal storage, cache retry/staleness, absent key, timeouts/failures, malformed/hallucinated outputs and action IDs, unchanged health/incidents, every question, previous-healthy insufficiency, selected resolved recovery, cross-tenant/reader restrictions, late old events, and current evidence versus historical state. Frontend tests cover freshness presentation, confidence labels, structured scoped requests and safe request errors. The HTTP smoke workflow exercises brief and recovery fallback through real routes.
 
-No live provider call was made during implementation. Operator question answers are transient, brief regeneration is not append-only audit history, and explicit operator calls have bounded request time/output but no new AI quota/rate-limiting subsystem. Those are pilot considerations rather than automatic-action or infrastructure features.
+Hosted verification currently reaches the configured provider path but returns deterministic fallback; live OpenAI success remains unverified. The failure category must be checked before attributing this to credentials, billing, model access or networking. Operator question answers are transient, brief regeneration is not append-only audit history, and explicit operator calls have bounded request time/output but no new AI quota/rate-limiting subsystem. Those are pilot considerations rather than automatic-action or infrastructure features.
+
+
+### Hosted verification and safe diagnostics
+
+The installed OpenAI Python SDK is pinned to 2.54.0. The backend uses
+`client.responses.parse(text_format=GroundedPlan)` with the configured
+`OPENAI_MODEL` (default `gpt-6-luna`), `store=False`, an eight-second timeout,
+1,000 output tokens and no retries. Luna uses `reasoning.effort=none`;
+[the model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna)
+confirms Responses and structured-output support. No model substitution is required.
+
+AI response audit metadata exposes `requested_model`, `failure_category` and
+`duration_ms` in addition to the existing provider-returned model and fallback flag.
+Logs record only the model, allowlisted category, duration and fallback flag—never
+exception messages/bodies, prompts, credentials or HTTP authorization headers.
+Categories distinguish authentication, permission/model access, quota exhaustion,
+transient rate limits, network failures/timeouts, invalid requests/schemas,
+refusals, incomplete output and invalid/ungrounded responses. The existing
+`AI_UNAVAILABLE` fallback code and deterministic report remain unchanged.
+
+To verify the existing Vercel deployment:
+
+1. Confirm server-only `OPENAI_API_KEY` and `OPENAI_MODEL` are configured for Production.
+2. Redeploy the latest main commit after changing environment variables.
+3. Open a degraded/unhealthy integration and select **Generate brief** (or **Refresh brief**).
+4. Select **Investigate with AI** and ask a listed incident question.
+5. Success displays **AI insight · Advisory**; provenance shows a model and no fallback.
+   Failure retains **Deterministic explanation · AI unavailable**. Inspect the safe
+   audit category or the Vercel `AI request` log to identify the cause. Health and
+   incidents must remain unchanged either way.
+
+Only server-side configuration is required; no frontend key/public model variable,
+additional service or environment-file change is needed. Local tests use the actual
+SDK against an offline HTTP transport, not production mock output.

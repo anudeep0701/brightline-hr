@@ -8,10 +8,12 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from time import monotonic
 
 from sqlalchemy import select
 
 from app.ai import enrichment
+from app.ai.diagnostics import failure_category, log_result, response_failure
 from app.ai.evidence import allowed_categories, build_evidence, changes_text
 from app.incidents.context import incident_context
 from app.metrics.calculation import utc
@@ -270,7 +272,10 @@ def generate(session, snapshot, settings, topic="brief", incident=None):
     )
     source, model, fallback = "deterministic", None, "MISSING_API_KEY"
     selection = {}
+    category, duration = "MISSING_API_KEY", None
     if settings.openai_api_key:
+        started = monotonic()
+        category = None
         fallback = "AI_UNAVAILABLE"
         try:
             with enrichment.OpenAI(
@@ -288,7 +293,7 @@ def generate(session, snapshot, settings, topic="brief", incident=None):
                 getattr(response, "status", "completed") != "completed"
                 or response.output_parsed is None
             ):
-                raise ValueError("No complete structured plan")
+                raise response_failure(response)
             plan = GroundedPlan.model_validate(response.output_parsed)
             if (
                 not set(plan.summary_fact_ids + plan.change_fact_ids) <= facts.keys()
@@ -332,10 +337,9 @@ def generate(session, snapshot, settings, topic="brief", incident=None):
             selection["selected_fact_ids"] = summary_ids
             selection["selected_change_ids"] = change_ids
             selection["selected_check_ids"] = plan.check_ids
-        except Exception:
-            enrichment.logger.warning(
-                "AI incident assistance unavailable; returning deterministic evidence"
-            )
+        except Exception as error:
+            category = failure_category(error)
+        duration = log_result(settings.openai_model, started, category)
     generated = datetime.now(timezone.utc).isoformat()
     audit = dict(
         tenant_id=snapshot.tenant_id,
@@ -351,6 +355,9 @@ def generate(session, snapshot, settings, topic="brief", incident=None):
         fallback_used=fallback is not None,
         evidence_digest=digest,
         topic=topic,
+        failure_category=category,
+        requested_model=settings.openai_model,
+        duration_ms=duration,
         **selection,
     )
     return dict(

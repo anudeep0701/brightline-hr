@@ -4,10 +4,12 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timezone
+from time import monotonic
 
 from openai import OpenAI
 from sqlalchemy import select
 
+from app.ai.diagnostics import failure_category, log_result, response_failure
 from app.ai.evidence import allowed_categories, build_evidence, changes_text
 from app.models.entities import Enrichment, Tenant
 from app.schemas.enrichment import EnrichmentReport
@@ -80,6 +82,8 @@ def explain(session, snapshot, settings):
     )
     if settings.openai_api_key:
         fallback_code = "AI_UNAVAILABLE"
+        category = None
+        started = monotonic()
         try:
             with OpenAI(
                 api_key=settings.openai_api_key, timeout=8, max_retries=0
@@ -96,7 +100,7 @@ def explain(session, snapshot, settings):
                 getattr(response, "status", "completed") != "completed"
                 or response.output_parsed is None
             ):
-                raise ValueError("No structured enrichment")
+                raise response_failure(response)
             candidate = EnrichmentReport.model_validate(response.output_parsed)
             if (
                 candidate.likely_issue_category
@@ -106,11 +110,13 @@ def explain(session, snapshot, settings):
             report = candidate
             source = f"openai:{settings.openai_model}"
             fallback_code = None
-        except Exception:
-            # SDK errors may contain request information or credentials. Never log them.
-            logger.warning(
-                "AI enrichment unavailable; returning deterministic reason_text"
-            )
+        except Exception as error:
+            category = failure_category(error)
+        duration = log_result(settings.openai_model, started, category)
+        payload["provider_diagnostics"] = {
+            "failure_category": category,
+            "duration_ms": duration,
+        }
     # No health state is ever written. Lock only after network I/O, then recheck cache.
     session.scalar(
         select(Tenant).where(Tenant.id == snapshot.tenant_id).with_for_update()

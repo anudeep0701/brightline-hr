@@ -78,6 +78,9 @@ class AIAuditOut(BaseModel):
     fallback_used: bool
     evidence_digest: str
     topic: str
+    failure_category: str | None = None
+    requested_model: str | None = None
+    duration_ms: int | None = None
     selected_fact_ids: list[str] = Field(default_factory=list)
     selected_change_ids: list[str] = Field(default_factory=list)
     selected_check_ids: list[str] = Field(default_factory=list)

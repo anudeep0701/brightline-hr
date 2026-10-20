@@ -1,5 +1,6 @@
 # Business behavior tests
 
+Current submission totals and live/browser verification are in [VERIFICATION.md](VERIFICATION.md). Counts in the dated implementation follow-ups below describe those earlier stages; run the complete suites for the current result.
 The suite checks operational outcomes rather than pursuing a coverage percentage. Unit tests isolate policy and metric boundaries; service tests verify persistence and incident transitions; API workflow tests exercise HTTP validation, ingestion, stored metrics, health decisions and incident history together. Only time and the optional AI boundary are faked in the new workflow suite. Core calculations and database-backed services run normally.
 
 ## Run

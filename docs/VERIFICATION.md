@@ -1,5 +1,15 @@
 # Verification record
 
+Current release evidence is listed first. Earlier dated sections preserve the implementation history; their old counts, deployment gaps and access limitations are superseded by the final records above them.
+
+## Submission packaging audit — 2026-10-19
+
+The audit started from clean `main` at deployed release `ef3452c`. Only documentation consistency and submission-output ignores needed changes; application code, dependencies, migrations and health/AI policy were unchanged. The hosted assessment opens automatically with a fixed-tenant HttpOnly session; normal production authentication remains enabled when DEMO_MODE is false. Exporter credentials stay separate. `.env.example` contains twelve blank placeholders; no real environment file was accessed.
+
+Revalidation passed **435 backend tests, 59 frontend tests and 14 deployment/launcher tests**, Ruff F/I and formatting, frontend lint, TypeScript, an isolated production build with server-secret bundle checks, production startup/import without OpenAI, real HTTP ingestion/evaluation/upload/fallback smoke, and disposable PostgreSQL migration/concurrency/query checks. The backend tests include demo expiry/reuse, tenant boundaries, normal bearer authorization, ingestion-key separation, safe demo imports and AI guardrails. One upstream Starlette/httpx deprecation warning remains; no test failed.
+
+The submission archive is assembled from the final committed Git tree, not the working directory. Its generated manifest records the exact source commit, file digests, exclusions and independent extraction checks. Migrations remain under `backend/migrations/`; there is no duplicate root migration tree. All dated records below are historical evidence, not current setup requirements.
+
 ## Final product and UX refinement — 2026-10-19
 
 - Overview, Integrations, Incidents, AI assistant and Data Sources now have distinct operator purposes. Overview keeps priorities/outcomes concise; detail pages lead with the deterministic reason, next check, evidence and incident/recovery history before AI. The read-only workspace incident collection reuses existing scoped incident queries; no schema or health-policy change was required.
@@ -7,6 +17,8 @@
 - **435 backend tests, 59 frontend tests and 14 launcher/deployment tests passed.** New checks cover ranking bounds, healthy exclusions, metric formatting, actual drivers, recovery, stale evidence, disclosure, new navigation, scoped incident reads and unchanged AI guardrails. The existing exact-grounding assertions now validate the answer against its explicit `answer_evidence` rather than concatenating the separately displayed supporting evidence. No security or domain assertion was removed.
 - Ruff F/I/format, frontend lint, TypeScript and the production build passed. Production import/startup without OpenAI, disposable PostgreSQL migration/query checks, and the real HTTP ingestion/evaluation/incidents/uploads/AI-fallback smoke passed. No environment file or hosted migration was accessed. Browser and hosted outcomes are recorded with the release report; live provider success must still be verified separately from fallback.
 - Browser validation against the final production build and same-origin rewrite table passed anonymous demo entry, normal workspace authentication, first-use empty state, dedicated navigation, priority/evidence disclosure, latency/recovery explanations, active/resolved incident links, evaluation feedback, CSV partial import and duplicate preview, JSON import, provenance and the Live API guide. Desktop 1280px and narrow 390px layouts had no document overflow; captured demo console warnings/errors were empty. All test records were disposable local data.
+- Release `ef3452c` passed both GitHub CI jobs and the existing Vercel deployment. Public `/`, `/healthz`, `/readyz` and the five frontend routes returned 200. Anonymous demo entry and browser refresh required no bearer-token entry. Hosted JSON preview/import accepted one synthetic record with batch provenance, and subsequent evaluation succeeded. No captured demo console warnings/errors.
+- Hosted `gpt-6-luna` returned LIVE workspace/why/full-evidence/incident-recovery answers (3,313/1,166/1,651/1,189 ms), with at most three priorities and four primary facts. DocuSign explicitly cited latency above its recovery margin and zero of two healthy windows. Cross-tenant reads/questions returned 403; ingestion and cron still required independent credentials; unsafe/action questions were refused; AI left snapshots/incidents unchanged.
 - Submission scope is frozen after this pass: subsequent implementation changes are limited to blocking defects.
 
 ## Interactive operations assistant — 2026-10-19

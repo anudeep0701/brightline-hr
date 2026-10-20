@@ -25,3 +25,6 @@ data/*.jsonl
 .npmrc
 .netrc
 /data/synthetic/generated/
+
+# Submission staging and packaged artifacts
+/dist/

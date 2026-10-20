@@ -1,6 +1,6 @@
 # Optional grounded incident assistance
 
-Health classification, rollups, snapshots and incident transitions use the deterministic engine. Refresh/cron never invokes OpenAI. The backend key is optional and never enters frontend configuration. All public assistance requests require an operator workspace token, except the explicitly credential-free local SQLite demo. PostgreSQL workspaces require authentication even when APP_ENV is demo.
+Health classification, rollups, snapshots and incident transitions use the deterministic engine. Refresh/cron never invokes OpenAI. The backend key is optional and never enters frontend configuration. Assistance requires an operator workspace identity, the constrained automatic hosted demo session, or the explicitly credential-free local SQLite demo. With DEMO_MODE disabled, PostgreSQL requires workspace authentication even when APP_ENV is demo. Hosted reviewers never supply a workspace or OpenAI key.
 
 ## One grounded public contract
 
@@ -18,7 +18,7 @@ Provider requests use `store=False`, an eight-second transport timeout, zero ret
 
 A missing key returns deterministic evidence with `MISSING_API_KEY`. Timeouts, failures, incomplete/refused/invalid responses and ungrounded output return `AI_UNAVAILABLE`. Errors are sanitized. Operators can always inspect deterministic reasons and recovery evidence without AI.
 
-Briefs persist in the existing enrichment table with compact source-evidence references and audit metadata, not full prompt text. Successful results are cached by snapshot, prompt version, requested model and freshness; configured-key fallbacks may retry on the next explicit request. Keyless readers can reuse a cached advisory without initiating a call. Changing the configured model invalidates its cache when a provider key is configured. Concurrent requests may duplicate an upstream call but recheck the cache under a tenant lock before persistence. There is no paid-call quota/rate limiter in this MVP.
+Briefs persist in the existing enrichment table with compact source-evidence references and audit metadata, not full prompt text. Successful results are cached by snapshot, prompt version, requested model and freshness; configured-key fallbacks may retry on the next explicit request. Keyless readers can reuse a cached advisory without initiating a call. Changing the configured model invalidates its cache when a provider key is configured. Concurrent requests may duplicate an upstream call but recheck the cache under a tenant lock before persistence. These fixed-topic brief routes have no paid-call quota/rate limiter. The separate interactive assistant has bounded evidence and a best-effort per-worker tenant budget of ten questions per minute; see [AI operations](AI_OPERATIONS.md).
 
 The existing source column has a 32-character limit. Long provider model identifiers use `openai:see-audit` as the source label; the full validated identifier is retained in audit metadata. The audit is not an append-only log of every regeneration. Investigation/recovery answers expose metadata but do not persist conversations.
 

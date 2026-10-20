@@ -18,7 +18,7 @@ Use a dedicated Supabase project/database for this pilot. Keep preview and custo
 
    The runner applies numbered migrations transactionally and checks stored digests. It preserves existing demo data on compatible PostgreSQL schemas. A changed applied migration fails rather than silently rewriting history. Check backups and the target database before administering an existing customer database.
 4. Run the same command again to verify migration state. A successful run with no “Applied” lines means all existing migration digests match.
-5. Register the tenant/integration and issue a workspace token:
+5. For normal customer/pilot authentication, register the tenant/integration and issue a workspace token (hosted assessment reviewers use the automatic session below):
 
    ```sh
    .venv/bin/python scripts/admin.py brightline 'Brightline HR' \
@@ -117,7 +117,7 @@ When `DEMO_MODE` is false, the session endpoint cannot issue a cookie, existing 
 
 The case-study deployment uses Vercel Hobby, so health evaluation can be triggered on demand and any configured Vercel cron is limited to a Hobby-compatible cadence. The intended production operating cadence is approximately five minutes and would use a production-capable scheduler.
 
-The committed root config has **no cron entry**, including no daily cron. A daily job would not provide the intended operational freshness and would unnecessarily advance a static demo without new telemetry. An authenticated workspace operator uses **Evaluate now**, which calls `POST /api/evaluate`, evaluates only that tenant through the existing service, and reloads the dashboard. The button is disabled for readers and while work is running; failures are shown in the dashboard. It never uses or receives `CRON_SECRET`.
+The committed root config has **no cron entry**, including no daily cron. A daily job would not provide the intended operational freshness and would unnecessarily advance a static demo without new telemetry. An authenticated workspace operator, or the constrained hosted demo session, uses **Evaluate now**, which calls `POST /api/evaluate`, evaluates only that tenant through the existing service, and reloads the dashboard. The button is disabled for readers and while work is running; failures are shown in the dashboard. It never uses or receives `CRON_SECRET`.
 
 **Keep `CRON_SECRET` configured in Vercel**, even on Hobby: existing production settings still require at least 32 characters. `GET /api/cron/refresh` remains protected and available for future production scheduling. No/incorrect secret returns 401; locking, idempotency, tenant evaluation and incident confirmation/recovery are unchanged. Scheduler choice does not change the health policy.
 
@@ -136,7 +136,7 @@ Manual evaluations remain subject to configured buckets: repeated clicks in one 
 After an approved deployment, check:
 
 1. `/healthz`, `/readyz`, `/docs` and `/openapi.json` resolve on the same domain as the dashboard.
-2. `/api/workspace` returns 401 without a token; a valid workspace token loads only its tenant.
+2. `/api/workspace` returns 401 without a credential/session. In the assessment, anonymous entry establishes the demo session automatically and browser refresh preserves access, without token entry. With demo mode disabled, a valid workspace token loads only its tenant.
 3. A recent production-style `/api/ingest` batch accepts valid events; replay reports duplicates; a foreign tenant/integration is rejected.
 4. An operator can call `/api/evaluate`; repeated same-bucket evaluation does not advance incidents.
 5. The dashboard and detail pages load same-origin evidence, including file-import validation and confirmation.

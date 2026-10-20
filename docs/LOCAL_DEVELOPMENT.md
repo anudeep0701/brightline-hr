@@ -25,7 +25,7 @@ The local launcher loads repository-root `.env` and optional `.env.local` at run
 - **PGPASSWORD** is needed only for the existing local Docker Compose database. The launcher does not start that database.
 - **CRON_SECRET** is not required by local demo settings; production/scheduler configuration remains separate.
 
-Keep local configuration at the repository root. The launcher refuses separate `frontend/` environment files because Next.js could independently load backend secrets from them. Backend credentials loaded at the root are removed from the frontend child's environment. This local launcher behavior does not change production deployment or standalone Python CLI tools: those still use process variables, and do not automatically load root environment files. PostgreSQL still requires a workspace access token; loading database configuration does not bypass authentication.
+Keep local configuration at the repository root. The launcher refuses separate `frontend/` environment files because Next.js could independently load backend secrets from them. Backend credentials loaded at the root are removed from the frontend child's environment. This local launcher behavior does not change production deployment or standalone Python CLI tools: those still use process variables, and do not automatically load root environment files. Normal PostgreSQL access still requires a workspace token; loading database configuration does not bypass authentication. Explicit DEMO_MODE is a separate fixed-tenant assessment session, documented in [hosted assessment access](CREDENTIALS_AND_DEPLOYMENT.md#hosted-assessment-access).
 
 ## Connect a PostgreSQL demo workspace
 
@@ -37,7 +37,7 @@ npm run demo:access
 
 This local-only command uses the same root configuration/precedence as `npm run dev`, then invokes the existing trusted administrator CLI to generate and register an operator workspace token for `brightline`. It prints the token once after persistence succeeds; the database stores only its hash. Copy that token into **Workspace access → Workspace bearer token → Connect** on the dashboard. Do not paste an ingestion or OpenAI key. Browser refresh clears the token, so save it privately for reconnection. Re-running this command creates an additional credential; it does not retrieve old plaintext, seed data or apply migrations. An existing tenant's integrations/data are preserved.
 
-Only the local SQLite demo permits credential-free access. PostgreSQL authentication is retained even with APP_ENV=demo. No application restart is necessary after registering a token.
+With DEMO_MODE disabled, only the local SQLite demo permits credential-free access. PostgreSQL authentication is retained even with APP_ENV=demo; the public assessment instead uses an explicitly enabled fixed-tenant demo session. No application restart is necessary after registering a token.
 
 ## Existing SQLite demo
 
@@ -99,4 +99,4 @@ FastAPI reload watches `backend/app`; Next.js retains its normal development hot
 
 Verified on macOS: root `npm run dev` launched Uvicorn with reload on port 8000 and Next.js dev on port 3000 against an isolated 5,079-event SQLite dataset. Browser requests loaded all ten integrations without console errors; healthz, readyz, docs/OpenAPI and configured CORS returned successful responses. Sending Ctrl+C to the root terminal exited successfully, released both listening ports, and exited the backend reloader and worker. All 215 backend tests, six frontend tests, four root-launcher tests and TypeScript checks passed. No environment file, hosted database or production deployment configuration was changed. Windows path/process-tree support is implemented but was not runtime-tested on this macOS host.
 
-PostgreSQL requires a tenant-scoped workspace token for dashboard/AI/operator access even with `APP_ENV=demo`. Only the explicitly selected SQLite demo permits credential-free synthetic tenant access. Provision the workspace token using the existing trusted `scripts/admin.py` CLI, then connect it through the dashboard's workspace access control.
+With `DEMO_MODE=false`, PostgreSQL requires a tenant-scoped workspace token for dashboard/AI/operator access even with `APP_ENV=demo`. Hosted assessment reviewers use automatic demo sessions instead. Only the explicitly selected SQLite demo permits credential-free synthetic tenant access. Provision the workspace token using the existing trusted `scripts/admin.py` CLI, then connect it through the dashboard's workspace access control.

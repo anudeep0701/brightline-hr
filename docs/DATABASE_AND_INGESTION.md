@@ -40,14 +40,15 @@ Local demo/tests can explicitly choose a SQLite URL and `APP_ENV=demo` or `test`
 
 Use an ingestion key for external exporters, or an existing workspace operator token for compatibility:
 
-- `POST /api/v1/request-events` with `{ "events": [record, ...] }` is the canonical endpoint.
+- `POST /api/ingest` with `{ "events": [record, ...] }` is the canonical external endpoint and accepts ingestion-only keys.
+- `POST /api/v1/request-events` accepts the same envelope for workspace-operator/local-demo compatibility; ingestion-only keys cannot use this alias.
 - `POST /api/v1/logs` with `{ "logs": [record, ...] }` remains compatible.
 
 Each envelope accepts 1–1000 records. Generated names (`request_id`, `timestamp`, `http_status`) and legacy names (`event_id`, `occurred_at`, `status_code`) are supported through aliases; do not submit both names for one field. Required fields are request/event ID, integration ID, aware timestamp, status and finite nonnegative duration. Names, type, error code/message, timeout, category and synthetic scenario metadata are optional and bounded. Unknown fields are rejected. Empty CSV optional metadata is treated as absent. Timestamps without a timezone, future events, and API events older than seven days are rejected.
 
 The bearer identity determines tenant ownership. An optional source `tenant_id` must match it. Integrations must already exist for that tenant; ingestion never provisions arbitrary tenants or integrations from untrusted input. Error category is normalized from HTTP status and timeout, as before. Raw source metadata is stored as validated fields in `raw_event`, with UTC timestamps and normalized numeric types, plus dedicated metadata columns. This is unaggregated request metadata, not an unvalidated arbitrary request body or a byte-for-byte original file archive. Export names map to stored `event_id`/`occurred_at`/`status_code` columns. Arbitrary payload fields are not accepted.
 
-A valid envelope returns HTTP 200 with per-record outcomes, including when all records are rejected:
+Workspace-operator compatibility batches return HTTP 200 with per-record outcomes, including when all records are rejected. Ingestion-key batches return 422 if entirely invalid and 403 before writes for any unauthorized tenant/integration:
 
 ```json
 {
@@ -82,8 +83,8 @@ The CLI prints aggregate accepted/rejected/duplicate counts and up to 100 indexe
 
 Run `cd backend && ../.venv/bin/pytest -q`. Tests cover mixed-batch acceptance, duplicate preservation, tenant isolation, malformed records, UTC round trips, raw/rollup separation, config persistence, file formats, retries, historical replay and missing configuration. The existing health/incident scenarios still run against the new tables.
 
-GitHub Actions provisions an isolated empty PostgreSQL database and runs `scripts/check_postgres.py`, which installs v1, inserts representative legacy rows, applies all subsequent migrations and verifies backfills, RLS flags, concurrent ingestion and refresh. This script refuses a nonempty database and must never be used against a customer database. Local PostgreSQL execution was unavailable while Docker was stopped; CI checks are supplied, not claimed as run here.
+GitHub Actions provisions an isolated empty PostgreSQL database and runs `scripts/check_postgres.py`, which installs v1, inserts representative legacy rows, applies all subsequent migrations and verifies backfills, RLS flags, concurrent ingestion and refresh. This script refuses a nonempty database and must never be used against a customer database. Current PostgreSQL migration, upgrade, preserved-data and concurrency results are recorded in [verification](VERIFICATION.md); SQLite tests alone do not establish them.
 
-On Supabase/Vercel, supply database credentials only in backend environment settings, apply migrations from a trusted terminal, then deploy the compatible backend. The frontend's sanitized read contract remains unchanged. Raw error messages are retained only in tenant-scoped database storage; the normal detail API and AI enrichment continue using sanitized/aggregate data. Configure an appropriate retention/access policy before storing real customer error metadata.
+On Supabase/Vercel, configure server-side project variables, apply migrations from a trusted terminal, then deploy the single Services project. Trusted service build/server processes share project variables; no credential is exposed to browser bundles. The frontend's sanitized read contract remains unchanged. Raw error messages are retained only in tenant-scoped database storage; the normal detail API and AI enrichment continue using sanitized/aggregate data. Configure an appropriate retention/access policy before storing real customer error metadata.
 
 `003_health_engine.sql` adds per-integration policy fields and uppercase, typed health result/counter columns. See [Health engine](HEALTH_ENGINE.md) for configuration and transition behavior.

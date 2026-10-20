@@ -1,5 +1,7 @@
 # Local end-to-end validation — 2026-10-16
 
+This dated run is historical. See [current verification](VERIFICATION.md) for the final deployed release, demo sessions and live AI results.
+
 This run used isolated synthetic SQLite and loopback PostgreSQL 16 databases. No hosted connection, environment file or live OpenAI request was used. README.md and SOLUTION_DESIGN.md were not changed by this task. Nothing was deployed or prepared for Vercel deployment.
 
 ## Reproduce the smoke test
@@ -25,7 +27,7 @@ cd frontend
 npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-Open http://localhost:3000. The default API base is http://localhost:8000. Use `--scenario` with the existing demo launcher for a focused scenario instead of the full smoke acceptance flow:
+Open http://localhost:3000. The development API default is http://localhost:8000. A production build uses the current origin unless explicitly overridden; the root npm run dev launcher supplies the local override automatically. Use `--scenario` with the existing demo launcher for a focused scenario instead of the full smoke acceptance flow:
 
 ```bash
 .venv/bin/python scripts/run_demo.py --scenario authentication-outage
@@ -99,7 +101,7 @@ For a manually configured Supabase **development** database, export DATABASE_URL
 
 ## Manual environment configuration
 
-No variables are needed for default isolated smoke mode. For ordinary PostgreSQL operation configure DATABASE_URL, APP_ENV, CORS_ALLOWED_ORIGINS and NEXT_PUBLIC_API_BASE_URL. Local Compose additionally needs PGPASSWORD. OPENAI_API_KEY is optional and backend-only. CRON_SECRET is required when selecting production settings. No new variable or environment-file edit was introduced.
+No variables are needed for default isolated smoke mode. For ordinary PostgreSQL operation configure DATABASE_URL and APP_ENV. The root launcher supplies local API/CORS defaults; same-origin Vercel production leaves CORS_ALLOWED_ORIGINS and NEXT_PUBLIC_API_BASE_URL unset. Local Compose additionally needs PGPASSWORD. OPENAI_API_KEY is optional and backend-only. CRON_SECRET is required when selecting production settings. No new variable or environment-file edit was introduced.
 
 ## Verified results
 

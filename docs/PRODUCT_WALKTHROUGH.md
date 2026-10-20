@@ -2,6 +2,8 @@
 
 The overview starts with Brightline's problem: Ops should detect failing integrations from request telemetry before relying on a support ticket. Priority, evidence freshness and recent direction appear before supporting fleet counts. All numbers come from the existing API and deterministic pipeline.
 
+The [hosted assessment](https://brightline-hr.vercel.app) opens automatically in the fixed synthetic Brightline workspace. Reviewers enter no workspace token. Normal customer deployments retain workspace authentication.
+
 ## Prepare an isolated local demo
 
 Stop `npm run dev` with Ctrl+C. From the repository root run:
@@ -18,7 +20,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm --prefix frontend run dev
 
 Open http://localhost:3000. This existing launcher creates a temporary SQLite database, generates seeded events, ingests them through the domain service, replays health windows, and starts the API. It never loads environment files or changes the configured customer database. Clear Workspace access if an in-memory token belongs to a different database. PostgreSQL workspaces still require a workspace bearer token.
 
-The replay contains healthy traffic, sustained failures, low-volume evidence and a resolved incident. Earlier degraded states remain visible in transition history; prolonged degradation can correctly escalate to UNHEALTHY. The scenario controls explore the seeded evidence and explain what each scenario demonstrates. They do not silently regenerate events or overwrite databases. Regenerate immediately before a presentation: these are timestamped events, and freshness correctly expires.
+The replay contains healthy traffic, sustained failures, low-volume evidence and a resolved incident. Earlier degraded states remain visible in transition history; prolonged degradation can correctly escalate to UNHEALTHY. The scenario controls explore the seeded evidence and explain what each scenario demonstrates. Selecting a scenario only explores evidence. In public DEMO_MODE, the separate **Refresh demo data** action generates bounded current-time events through the normal pipeline; it preserves stored policies and historical decisions. Regenerate immediately before a presentation: these are timestamped events, and freshness correctly expires.
 
 OpenAI is disabled by default in this launcher. To use a manually exported backend key, append `--enable-ai`. Otherwise the same UI displays a clearly labeled deterministic fallback. No generated summary is presented as AI when a fallback was used.
 
@@ -37,14 +39,9 @@ OpenAI is disabled by default in this launcher. To use a manually exported backe
 - Data arriving distinguishes receipt time from event time and evaluation time. Unknown provenance is displayed honestly for legacy records.
 - Shadow mode remains observe → classify → advise → human acts. No remediation, threshold editing, cross-tenant assistance or incident resolution is delegated to AI.
 
-## Verification for this refinement
+## Verification
 
-- 30 frontend tests pass (12 new rendered-component/presentation tests), preserving the existing tests.
-- 292 backend tests pass; no backend contracts or domain logic changed.
-- 10 root developer-command tests pass.
-- TypeScript, configured Prettier lint (`npm --prefix frontend run lint`) and production frontend build pass.
-- Local browser validation uses an isolated database, actual domain-generated events and the production frontend build. Checked empty, healthy, degraded, unhealthy, stale/unknown, resolved recovery, AI-unavailable and Data Sources states. File selection, partial validation, explicit import and Live API setup were exercised.
-- Live OpenAI output is not claimed as verified; rendering of grounded structured reports is covered by tests. The local browser exercise deliberately disabled OpenAI.
+See [the current verification record](VERIFICATION.md) for test totals, production-build/browser checks and live OpenAI results. Offline suites use fakes or deterministic fallback; live provider success is verified separately. No environment file or credential belongs in the submission.
 
 ## Remaining pilot measurements
 

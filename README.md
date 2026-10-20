@@ -6,7 +6,7 @@ The overview prioritizes issues and evidence gaps. Integrations provides the fil
 
 This is an FDE case-study MVP. Its seeded outcomes demonstrate the workflow; they are not production results or customer ROI.
 
-The hosted assessment can open directly into a synthetic Brightline demo workspace, without copying a workspace token. This explicit demo mode grants a short-lived, tenant-scoped browser session. Customer deployments keep workspace authentication; demo mode is off by default. See [hosted demo setup](docs/CREDENTIALS_AND_DEPLOYMENT.md#hosted-assessment-access).
+The [hosted assessment](https://brightline-hr.vercel.app) opens in a constrained Brightline demo workspace using synthetic/demo telemetry. No workspace credential is required from the reviewer. Its automatic, tenant-scoped browser session lasts one hour and renews while in use. Production deployments retain tenant-scoped workspace authentication; demo mode is off by default. See [hosted demo setup](docs/CREDENTIALS_AND_DEPLOYMENT.md#hosted-assessment-access).
 
 ## Design decisions
 
@@ -29,7 +29,7 @@ Next.js/TypeScript/Tailwind frontend; FastAPI/Pydantic backend; Polars analytics
 ```mermaid
 flowchart LR
     Logs[Customer exporter] -->|Ingestion key| API[FastAPI]
-    UI[Next.js dashboard] -->|Workspace token / file upload| API
+    UI[Next.js dashboard] -->|Workspace token or demo session / file upload| API
     Seed[Synthetic generator / trusted file CLI] --> Ingest[Shared ingestion service]
     API --> Ingest
     Ingest --> DB[(PostgreSQL / Supabase)]
@@ -206,7 +206,7 @@ CI checks PostgreSQL upgrades/concurrency separately with `scripts/check_postgre
 
 ## API
 
-Interactive schemas are at `/docs`. Workspace routes require a tenant-scoped reader/operator token; writes and AI requests require an operator. Exporters use an ingestion key solely for `/api/ingest`.
+Interactive schemas are at `/docs`. Normal production workspace routes require a tenant-scoped reader/operator token; writes and AI requests require an operator. The hosted assessment uses its constrained automatic demo session instead. Exporters use an ingestion key solely for `/api/ingest`.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -215,6 +215,7 @@ Interactive schemas are at `/docs`. Workspace routes require a tenant-scoped rea
 | `GET /api/v1/dashboard` | Overview data, freshness and calculated operational impact |
 | `GET /api/health-summary`, `GET /api/integrations` | Filtered health summary and integration list |
 | `GET /api/integrations/{id}` | Current evidence, bounded history, logs and incidents |
+| `GET /api/incidents` | Authorized workspace incidents, active first, with pagination |
 | `GET /api/integrations/{id}/metrics`, `GET /api/integrations/{id}/incidents` | Metric or incident history |
 | `POST /api/ingest` | Validated external request batch with accepted/rejected/duplicate counts |
 | `POST /api/imports/preview`, `POST /api/imports/commit` | Workspace-authorized file validation and confirmed import |
@@ -247,7 +248,7 @@ For the public synthetic assessment only, also set `DEMO_MODE=true`, `DEMO_TENAN
 
 The case-study deployment uses Vercel Hobby, so health evaluation can be triggered on demand and any configured Vercel cron is limited to a Hobby-compatible cadence. The intended production operating cadence is approximately five minutes and would use a production-capable scheduler.
 
-The committed Hobby configuration contains no cron entry; use **Evaluate now** with a workspace operator token. `/api/cron/refresh` remains available for a future scheduler with `CRON_SECRET` authorization. `CRON_SECRET` is still required by production settings, including the hosted Hobby demo. To enable production scheduling on a suitable tier, add a root cron entry with path `/api/cron/refresh` and schedule `*/5 * * * *`. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and operator evaluation before demo use; verify recurring scheduler execution before production adoption. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
+The committed Hobby configuration contains no cron entry; use **Evaluate now** through the automatic hosted demo session, or with an operator workspace token in normal deployments. `/api/cron/refresh` remains available for a future scheduler with `CRON_SECRET` authorization. `CRON_SECRET` is still required by production settings, including the hosted Hobby demo. To enable production scheduling on a suitable tier, add a root cron entry with path `/api/cron/refresh` and schedule `*/5 * * * *`. Git pushes deploy the whole application; application rollback does not undo schema migrations. Use separate preview and customer database credentials. Verify readiness, ingestion, authentication, AI fallback and operator evaluation before demo use; verify recurring scheduler execution before production adoption. Detailed Supabase-first steps are in [the deployment guide](docs/CREDENTIALS_AND_DEPLOYMENT.md).
 
 ## Evaluator walkthrough
 

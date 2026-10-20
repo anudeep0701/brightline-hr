@@ -4,7 +4,7 @@ The public API is under `/api`. Existing `/api/v1` routes remain supported for t
 
 ## Authentication and tenancy
 
-Monitoring and operator endpoints require an opaque workspace bearer token in `Authorization: Bearer <workspace-token>`. Tokens are hashed at rest and map to one tenant and either reader or operator access. Local `APP_ENV=demo` alone allows credential-free access to the seeded Brightline tenant. Production fails closed on invalid configuration. OpenAI API keys are never workspace tokens and never belong in browser requests.
+Monitoring and operator endpoints require an opaque workspace bearer token in `Authorization: Bearer <workspace-token>`. Tokens are hashed at rest and map to one tenant and either reader or operator access. Credential-free local access additionally requires SQLite and DEMO_MODE disabled. In the public assessment, explicitly enabled DEMO_MODE establishes a Secure, HttpOnly session confined to the configured synthetic tenant; the reviewer enters no token. This session cannot authorize external ingestion or policy/credential administration. Production fails closed on invalid configuration. OpenAI API keys are never workspace tokens and never belong in browser requests.
 
 Readers can inspect all GET data endpoints. Operators can also ingest, evaluate, explain and replace health configuration. For token-based access, an optional `tenant_id` query filter must match the authenticated tenant or returns 403. Credential-free local demo mode with SQLite can select another synthetic tenant; this exception is unavailable for PostgreSQL and production. This filter does not grant cross-tenant access. There is no implicit administrator or all-tenant data query. Probes are public; the scheduler uses its separate CRON_SECRET bearer token.
 
@@ -16,6 +16,9 @@ External ingestion uses a separate tenant-scoped ingestion-only key on `POST /ap
 | --- | --- |
 | `GET /healthz` | Process liveness: `{"status":"ok"}`. No database or OpenAI access. |
 | `GET /readyz` | Database connectivity and every required table/column readable: `{"status":"ready"}`. Missing migrations or unavailable storage return 503. Does not provision data or contact OpenAI. |
+| `GET/POST /api/demo/session` | Public capability discovery and explicitly enabled automatic fixed-tenant demo session; no bearer credential returned |
+| `POST /api/assistant/ask` | Operator/demo scoped workspace, integration or incident Q&A with concise cited evidence, disclosure and deterministic fallback |
+| `GET /api/incidents` | Authorized workspace incidents, active first, with state/time filters and pagination |
 | `GET /api/workspace` | Authorized identity, role and tenant options; all synthetic tenants only in credential-free local SQLite demo mode. |
 | `GET /api/health-summary` | Tenant ID, generation time, total integrations, counts by HEALTHY/DEGRADED/UNHEALTHY/UNKNOWN, stale count, current open incident count and latest evaluation time. |
 | `GET /api/integrations` | Paginated integration configuration summaries, latest/previous snapshots and stale flags. |
@@ -89,7 +92,7 @@ Application errors use a predictable `{"detail":"Safe explanation","code":"machi
 | 500 | Unexpected application failure with sanitized response. |
 | 503 | Storage unavailable, schema migrations missing, unprovisioned tenant or scheduler capacity exceeded. |
 
-`CORS_ALLOWED_ORIGINS` is read from the backend environment as a comma-separated list of exact browser origins. Allowed methods are GET, POST and PUT, with Authorization and Content-Type headers. Preflight is handled by middleware; disallowed origins receive no access-control allow-origin header. Cookie credentials are disabled. Production requires exact HTTPS origins without paths. No environment file is loaded, created or edited by the API.
+`CORS_ALLOWED_ORIGINS` is read from the backend environment as a comma-separated list of exact browser origins. Allowed methods are GET, POST and PUT, with Authorization and Content-Type headers. Preflight is handled by middleware; disallowed origins receive no access-control allow-origin header. Cross-origin cookie credentials are disabled; the hosted demo uses same-origin cookies. Same-origin production needs no CORS grant. Explicit production cross-origin grants require exact HTTPS origins without paths. No environment file is loaded, created or edited by the API.
 
 ## Existing compatibility and scheduler routes
 

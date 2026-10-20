@@ -10,4 +10,4 @@
 - [x] Verify thresholds, auth, isolation, ingestion, incidents and AI failure.
 - [x] Document credentials, Git/Vercel/Supabase deployment and limits.
 
-Verification boundary: local SQLite/API tests, frontend tests/build, browser checks, and disposable PostgreSQL migration/concurrency checks passed. Live OpenAI and hosted Supabase/Vercel deployment remain unverified. See [the latest verification record](VERIFICATION.md) for commands and counts.
+Verification boundary: local SQLite/API tests, frontend tests/build, browser checks, and disposable PostgreSQL migration/concurrency checks passed. The hosted Vercel/Supabase assessment and live local/hosted OpenAI flows have also been verified; the latest release record distinguishes live provider success from offline fallback tests. See [the latest verification record](VERIFICATION.md) for commands and counts.

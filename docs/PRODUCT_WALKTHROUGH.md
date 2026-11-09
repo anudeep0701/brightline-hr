@@ -4,6 +4,10 @@ The overview starts with Brightline's problem: Ops should detect failing integra
 
 The [hosted assessment](https://brightline-hr.vercel.app) opens automatically in the fixed synthetic Brightline workspace. Reviewers enter no workspace token. Normal customer deployments retain workspace authentication.
 
+## Official supplied-input replay
+
+Use `.venv/bin/python scripts/replay_official_data.py` for the exact historical 60-log result, or add `--rebase-to-now --serve` for the existing UI. The sample-only sparse policy and timeout mapping are explicit in [official input replay](OFFICIAL_DATA_REPLAY.md). The broader synthetic journey below supplements rather than replaces the provided input.
+
 ## Prepare an isolated local demo
 
 Stop `npm run dev` with Ctrl+C. From the repository root run:

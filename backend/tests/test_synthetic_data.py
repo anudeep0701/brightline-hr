@@ -87,9 +87,16 @@ def test_byte_reproducibility_and_sample_manifest(tmp_path):
     from pathlib import Path
 
     sample = Path(__file__).resolve().parents[2] / "data/synthetic/sample"
-    assert (sample / "requests.jsonl").read_bytes() == (
-        first / "requests.jsonl"
-    ).read_bytes()
+    # The official upload guide excludes bulk generated data. The fixed digest
+    # keeps byte-level verification strict even in a focused submission ZIP.
+    assert (
+        manifest["requests_sha256"]
+        == "67d367f6b421ed51eb5ab91f854052ba7f8797522eb9bffee0c8a8dda69fa56c"
+    )
+    if (sample / "requests.jsonl").exists():
+        assert (sample / "requests.jsonl").read_bytes() == (
+            first / "requests.jsonl"
+        ).read_bytes()
     assert (sample / "manifest.json").read_bytes() == (
         first / "manifest.json"
     ).read_bytes()

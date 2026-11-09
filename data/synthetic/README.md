@@ -57,7 +57,7 @@ Every JSONL record contains `timestamp`, `tenant_id`, `integration_id`, `integra
 
 ## Committed sample
 
-`sample/` contains **two tenants, twenty series, 11,422 events, and all ten scenarios over sixty minutes**. Regenerate it exactly with:
+`sample/` records a fixed manifest for **two tenants, twenty series, 11,422 events, and all ten scenarios over sixty minutes**. The repository may contain its generated JSONL, but the focused assessment ZIP omits bulk generated logs per the official guide. Regenerate them before file-CLI use; tests assert the fixed digest even without the JSONL. Regenerate it exactly with:
 
 ```bash
 .venv/bin/python scripts/generate_synthetic_data.py \
@@ -65,7 +65,7 @@ Every JSONL record contains `timestamp`, `tenant_id`, `integration_id`, `integra
   --output data/synthetic/sample
 ```
 
-The corresponding default start is fixed. Tests verify both committed files byte-for-byte and check the manifest digest.
+The corresponding default start is fixed. Tests verify two independent generations byte-for-byte and against the fixed digest/manifest; when a committed JSONL is present, it must match exactly too.
 
 ## Demo and tests
 

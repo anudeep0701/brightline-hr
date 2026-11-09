@@ -2,6 +2,21 @@
 
 Current release evidence is listed first. Earlier dated sections preserve the implementation history; their old counts, deployment gaps and access limitations are superseded by the final records above them.
 
+## Official-reference compliance audit - 2026-11-09
+
+All four Quick Guide pages were extracted and visually inspected, along with the complete case brief, starter README, optional Python helper and all 60 supplied observations. This supersedes the prior assumption that only synthetic self-generated data was available. Official files were not modified.
+
+The compliance fixes are a shared-pipeline official-input replay and regression tests; a 96-line root README with a 15-file review path; a supported two-page text-based design PDF containing one labeled raster diagram; and focused packaging that excludes standalone screenshots and bulk generated logs. The required 8 KiB official fixture remains byte-identical. Optional helper code was replaced because it drops timeouts from its denominator. Default production policy, authentication and architecture are unchanged.
+
+- **441 backend tests, 59 frontend tests and 14 launcher/deployment tests passed.** A separately run AI/security subset passed **185 cases** (operations/incident assistance, demo authorization/hardening, external ingestion and file onboarding). Six new official-input cases check timeout normalization, all sixty records, exact hash, metrics/health/incidents, deduplication, explicit uniform rebase, historical/current UNKNOWN, unchanged defaults and local-only execution. Existing strict synthetic reproducibility now asserts the fixed digest even when bulk generated JSONL is omitted.
+- Ruff F/I/format, frontend lint, TypeScript, isolated production Next.js build and server-secret bundle checks passed. Production import/startup without OpenAI and non-demo authorization passed.
+- Real HTTP smoke passed with 16,399 synthetic events: all four states, incident recovery, external ingestion, duplicates, partial validation, uploads/provenance and AI fallback. Disposable PostgreSQL 16 clean/repeat migrations, legacy preservation, RLS and concurrency passed; no hosted schema change.
+- Exact official replay at 2026-08-04 10:00 UTC accepted all 60 records and produced two Healthy / three Unhealthy integrations under the explicitly documented sparse sample profile. The normal dashboard was visually checked using the explicit rebased replay: five integrations, three attention items, reasons/metrics/freshness and incidents. Non-default audit ports used an exact local CORS override; normal 3000/8000 defaults are unchanged.
+- Current public probes returned 200, demo entry needed no workspace token, cross-tenant access returned 403, ingestion/cron remained independently protected, file import capability was enabled, and advisory Q&A returned **LIVE gpt-6-luna**. This was provider success, not fallback reported as success.
+- PDF inspection confirmed two selectable-text pages, no encryption, one 1,800 x 620 raster diagram and no image-only page. Standalone pictures/bulk generated logs are omitted from the new upload archive. Official size limit is under 50 MB; no basename convention was supplied. Portal upload, consent, recording and spoken pushback remain candidate actions.
+
+Final commit/archive identity, exclusion scan and new-copy check results are reported with the release; do not infer a new archive from older packaging records below.
+
 ## Submission packaging audit — 2026-10-19
 
 The audit started from clean `main` at deployed release `ef3452c`. Only documentation consistency and submission-output ignores needed changes; application code, dependencies, migrations and health/AI policy were unchanged. The hosted assessment opens automatically with a fixed-tenant HttpOnly session; normal production authentication remains enabled when DEMO_MODE is false. Exporter credentials stay separate. `.env.example` contains twelve blank placeholders; no real environment file was accessed.

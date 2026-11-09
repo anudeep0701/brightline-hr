@@ -1,78 +1,63 @@
-# Problem Restatement
+# Brightline HR: Integration Health
 
-A support ticket can be Brightline HR’s first indication that payroll, signing or directory sync is failing. Ops needs to identify integrations requiring attention before customers report them, understand the evidence and follow recovery.
+## Problem Restatement
 
-I built a tenant-scoped morning view for earlier investigation and fewer repeated incident openings. Synthetic scenarios demonstrate the workflow; they do not prove customer outcomes.
+Marcus Webb needs an operations team to spot failing payroll, signing, ATS, directory and notification integrations before a customer ticket becomes the first signal. I built a morning view that names the unhealthy integrations, explains the evidence and tracks recovery. This is a case-study implementation, not proof of customer outcomes.
 
-# Assumptions
+## Assumptions and Health Model
 
-These are starting policies to calibrate with Brightline, not universal reliability targets:
+These are initial operating assumptions to calibrate against Brightline's traffic and incident history, not universal service targets.
 
-- **Timing:** 15-minute rolling windows with an intended production evaluation cadence of approximately five minutes. The hosted Hobby demo evaluates on operator request; it has no configured cron. A production-capable scheduler can invoke the existing protected refresh endpoint. Dashboard polling is every 60 seconds and does not evaluate.
-- **Volume:** 20 requests before classification. This is an evidence gate, not statistical confidence; one failure already means 5% errors.
-- **Errors:** HTTP 4xx/5xx and timeouts count as failures; warning/critical thresholds are 1%/5%. Customer-caused 4xx responses may need different treatment.
-- **Latency:** P95 warning/critical thresholds are 1.5×/3× the integration target. Sufficient healthy history supports baseline comparisons, without excusing target breaches.
-- **Missing evidence:** insufficient volume, incomplete metrics or stale telemetry means UNKNOWN. Defaults allow 30 minutes without telemetry; evaluations more than two cadences old also make current evidence UNKNOWN.
-- **Persistence and recovery:** two adjacent bad windows with current critical evidence, or three degraded windows, confirm UNHEALTHY. Two adjacent fresh, sufficiently sampled windows below stricter recovery thresholds are required to recover. Gaps and borderline results reset streaks.
+- **Window and cadence:** I chose 15-minute rolling windows to damp short bursts, evaluated approximately every five minutes to keep investigation timely. The Hobby assessment evaluates on demand; production needs a capable scheduler. Sixty-second UI polling only reloads evidence.
+- **Evidence and freshness:** Twenty requests is an initial guard against tiny denominators, not statistical confidence. No telemetry for 30 minutes, an evaluation over two cadences old, or insufficient samples means UNKNOWN. Sparse/batch integrations need their own volume and expected-gap configuration.
+- **Errors:** Warning at 1% and critical at 5% flags early deterioration and frequent failures. All attempts are the denominator; HTTP 4xx/5xx and timeouts fail. Brightline should distinguish caller-caused 4xx if real logs support it.
+- **Latency:** P95 at 1.5x/3x the provider target warns/escalates even when requests succeed. Eligible healthy history adds a baseline comparison; it cannot excuse a target breach. I use the worst error, timeout or latency signal, so fast failures cannot cancel errors. P99 remains diagnostic.
+- **Persistence and recovery:** The first critical observation is DEGRADED; two adjacent bad windows with current critical evidence, or three degraded windows, confirm UNHEALTHY. Two fresh clean windows below 0.5% errors/timeouts and 1.25x latency reference are required to recover. UNKNOWN never closes an incident. Gaps/policy changes reset streaks; repeated evaluation of one bucket does not advance them.
+- **Fleet picture:** Tenant-wide counts and an ordered attention queue expose failures individually rather than averaging them into a misleading score. Confirmed failures lead, followed by degradation and evidence gaps. The view shows why, last telemetry/evaluation, first check and recovery progress. Request counts do not establish employee impact.
 
-Request outcomes indicate reliability, not payroll completion or employee impact.
+HEALTHY therefore needs recent sufficient evidence within policy and, when applicable, completed recovery. DEGRADED surfaces a warning or pending confirmation; UNHEALTHY is confirmed failure or a failure awaiting recovery; UNKNOWN is an evidence limitation.
 
-# Proposed Solution
+## Proposed Approach and Architecture
 
-Request logs → validation/normalization → metric aggregation → deterministic health engine → incidents → API → operations dashboard.
-
-API batches, confirmed file imports and synthetic data share validation, tenant/integration authorization and tenant/request-ID deduplication. Raw events remain separate from metrics. Rollups, explainable snapshots and incident changes commit together; repeating one evaluation bucket cannot advance confirmation.
-
-The overview leads with priorities and freshness; fleet evidence, incidents and workspace AI have separate views. AI is separate, operator-requested enrichment after the decision is persisted.
-
-# Health Model
-
-**HEALTHY** requires sufficient fresh evidence within policy, including recovery confirmation when leaving a bad state. **DEGRADED** means a warning or critical evidence awaiting confirmation. **UNHEALTHY** means confirmed critical evidence, sustained degradation, or an existing confirmed failure awaiting recovery. **UNKNOWN** acknowledges that the current evidence cannot support classification; it never resolves an open incident.
-
-I use the worst error, timeout or latency signal. Fast authentication failures must not look healthy; slow successful requests can still disrupt workflows. Volume and freshness gate classification.
-
-Consecutive windows reduce flapping and repeated incident openings. They overlap: confirmation adds delay, and a brief outage can affect several observations. Snapshots retain observed/stabilized states, reasons and policy evidence.
-
-# Architecture
+API logs, file imports and synthetic replay use one normalized ingestion service. Tenant-scoped deduplication preserves raw events separately from Polars metrics. Rollups, explainable snapshots and incident changes commit together. The dashboard presents persisted decisions before advisory AI.
 
 ```mermaid
 flowchart LR
-    Sources[API logs / file import / synthetic replay] --> Ingest[Shared validated ingestion]
-    Ingest --> DB[(PostgreSQL / Supabase)]
-    DB --> Engine[Polars metrics + deterministic policy]
-    Trigger[Scheduled / operator evaluation] --> Engine
-    Engine -->|Rollups, snapshots, incidents| DB
-    DB --> API[FastAPI]
-    API --> UI[Next.js operations dashboard]
-    API -->|Scoped persisted evidence| AI[Optional OpenAI assistance]
-    AI -->|Advisory result / fallback| API
+    Sources[Live API / files / demo] -->|Validate and normalize| Store[(PostgreSQL / Supabase)]
+    Store -->|Bounded request windows| Policy[Polars metrics + health policy]
+    Policy -->|Persist decisions and incidents| Evidence[Auditable evidence]
+    Evidence -->|Authorized reads| UI[Next.js operations view]
+    Evidence -->|Scoped facts only| AI[Optional OpenAI]
+    AI -->|Advisory citations and checks| Human[Operator]
+    UI -->|Reason and recovery| Human
 ```
 
-One Vercel Services project builds Next.js and FastAPI independently, routing `/api/*` to Python and other application paths to Next.js. Services is currently beta; hosted preview verification is a release gate. Hashed workspace reader/operator tokens and ingestion-only keys scope access to one tenant. Queries enforce isolation, supplemented by database constraints. SQLite is demo/test-only. The public assessment automatically establishes a one-hour HttpOnly, Secure, fixed-tenant demo session; reviewers enter no workspace token. Normal production retains explicit tenant-scoped workspace authentication, and exporters use separate ingestion-only keys. Only this mode can refill stale synthetic telemetry through normal ingestion; real deployments never generate telemetry on entry. Previewed demo imports require a separate server-side opt-in and are bounded and tagged for owner cleanup.
+<!-- pagebreak -->
 
-# AI Usage
+## Deployment and Supplied Data
 
-I use OpenAI for workspace questions, selected integration/incident investigation, and incident/recovery briefs. It prioritizes known facts and read-only checks; briefs also surface a supported issue category. Request error categorization itself remains deterministic; AI selects only categories supported by those observations, not classifications of arbitrary raw error text.
+One Vercel project builds Next.js and FastAPI separately; same-origin API paths route to Python. PostgreSQL is the hosted store; SQLite is restricted to local demos/tests. No Redis, broker or separate gateway is needed for this scope.
 
-Structured output selects allowed fact/check identifiers; the backend renders their text and rejects unsupported selections. Briefs expose snapshot/incident references, evidence and generation timestamps, model and fallback metadata. This constrained approach sacrifices free-form reasoning to keep the explanation reviewable. Responses lead with the stored health driver and a small set of priorities; supporting evidence and methodology expand on request. Evidence is retrieved under the existing tenant authorization before the model is called. Telemetry is untrusted data, never instructions; raw messages, employee details and credentials are omitted, labels sanitized, and out-of-scope/action requests declined. There are no SQL, network or mutation tools. The operator decides what to do. Bounded questions/context/output, brief persistence and short-lived answer caching limit cost; in-process throttling is best-effort across serverless workers. Missing credentials, invalid output or provider failure returns deterministic assistance without interrupting evaluation or changing incidents.
+The official fixture has 60 attempts across five integrations, including five Greenhouse timeouts with no HTTP code. I replaced the optional helper because it excludes those timeouts from its error denominator. The replay maps them to explicit timed-out attempts through normal ingestion, assumes UTC for naive timestamps and preserves a byte-identical input copy.
 
-# Trade-offs
+Twelve observations per provider cannot satisfy the default 20-request gate. A documented sample-only profile uses a 60-minute window, five-request minimum and 10%/30% warning/critical rates; with so few observations, a single error is already 8.3%. Two adjacent final evaluations preserve confirmation behavior. Exact replay reports historical results; an explicit uniform time rebase enables a fresh UI demonstration without inventing outcomes. Production defaults are unchanged. Seeded scenarios separately test latency, outages, UNKNOWN, spikes and recovery.
 
-- **Rules before anomaly detection:** explainable, testable policies are useful without training data. They require calibration and can miss patterns that a learned model might detect.
-- **Rolling batches before streaming:** five-minute evaluation is simple to operate, but confirmation and aggregation add delay. It is unsuitable for a subsecond response requirement.
-- **PostgreSQL before extra infrastructure:** one store supports ingestion, evidence and incident transactions. Current evaluation reads bounded event windows into Polars; memory and database work increase with traffic.
-- **One deployment, separate services:** same-origin Next.js and FastAPI simplify delivery and browser access, but share project configuration and a release cadence. Hobby uses on-demand evaluation; production needs a scheduler supporting roughly five-minute execution.
-- **Configured thresholds plus baselines:** targets prevent a consistently slow provider becoming its own acceptable normal. Baselines catch relative change, but need clean history. Synthetic tests establish behavior, not production sensitivity or false-positive rates.
+## AI and Human Control
 
-# Scale and Production Evolution
+OpenAI supports concise workspace/integration/incident questions, incident briefs and investigation checks. AI is optional enrichment, never health classification. The backend first retrieves bounded authorized evidence; the model selects allowed fact/check identifiers and the server validates and renders their text. Progressive disclosure keeps the default answer short.
 
-At higher volume, I would measure ingestion throughput, query cost, memory and evaluation duration. Partitioning, retention, incremental rollups and bounded tenant jobs come first. Event streaming and distributed processing are future options if throughput, backpressure or recovery requirements justify them.
+Telemetry is untrusted data, never instructions. Raw messages, employee-level PII and credentials are omitted; labels are sanitized. Cross-tenant/action questions are refused. There are no SQL, credential, remediation or mutation tools. The operator remains accountable. Missing keys, invalid outputs and provider failures return deterministic assistance without changing health or incidents. Short caches and per-worker budgets limit cost, but are not distributed abuse protection.
 
-Production evolution also needs scheduler/ingestion observability, alert destinations, SSO and membership-based RBAC beyond today's reader/operator tokens. The current product supports observation and advice, not notification delivery or autonomous remediation. Confirmed incident duration is measurable now; MTTD and detection before tickets require independent failure/report timestamps.
+## Demo versus Production Authentication
 
-# What I Would Do With More Time
+The public synthetic assessment automatically opens a one-hour Secure, HttpOnly session for the configured Brightline tenant; reviewers enter no workspace token. This explicit mode cannot select another tenant or administer credentials/policy. Previewed demo file imports require an additional server opt-in and are bounded/tagged. Only demo mode refills stale synthetic feeds. Normal deployments retain hashed tenant-scoped reader/operator credentials; exporters use separate ingestion-only keys. Authentication has not been removed.
 
-1. Connect a staging exporter, then run production telemetry in shadow mode with Brightline Ops. Calibrate thresholds, minimum volume and recovery margins against real incidents and ticket timing.
-2. Add SSO/RBAC, credential lifecycle controls and operational alerting with acknowledgement and runbooks.
-3. Strengthen observability, retention/redaction and backup/restore procedures; load-test the expected pilot and larger workloads.
-4. Evaluate adaptive baselines or anomaly detection only if labeled traffic shows an improvement over the deterministic policy. Keep operator approval for any future remediation.
+## Trade-offs
+
+I chose rules over anomaly detection because there is no labeled production history to train or validate against. Rules are defensible but need calibration. Rolling evaluation avoids streaming operations but adds detection/confirmation delay; overlapping windows measure persistence, not independent samples. PostgreSQL keeps evidence and incidents transactional; loading windows into Polars will cost memory at higher volume.
+
+A single Vercel project simplifies routing and delivery but couples releases and shares trusted server/build configuration. Hobby's manual evaluation is a hosting choice, not a different health policy. Synthetic and sparse sample results establish behavior, not production false-positive rates, availability or ROI. The broader reusable platform exceeds the brief's 3-4-hour MVP suggestion; it should not be represented as a timed build.
+
+## Scale and More Time
+
+First connect a real staging exporter, then run shadow production and calibrate thresholds, freshness and recovery with Ops. Record independent failure/ticket times before claiming MTTD or proactive ticket lead-time. Prioritize a monitored production scheduler, alert delivery, SSO/membership RBAC, retention/redaction, backup/restore and load testing. Incremental rollups, partitioning and bounded tenant jobs come before streaming/distributed processing; add them only if measured volume/backpressure requires it. Adaptive baselines or anomaly detection need evidence of improvement. Future remediation would require explicit human approval.

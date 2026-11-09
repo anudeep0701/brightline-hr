@@ -66,7 +66,7 @@ Valid records persist while malformed records are rejected. `INSERT ... ON CONFL
 
 ## File imports
 
-Provision tenants/integrations first using the existing admin CLI or demo seeder. Then import a file with a trusted database connection:
+Provision tenants/integrations first using the existing admin CLI or demo seeder. The focused ZIP omits bulk generated JSONL: run the documented synthetic generator before the example below, or use `docs/examples/production-ingest.json` with its registered pilot integration. Then import a file with a trusted database connection:
 
 ```bash
 .venv/bin/python scripts/ingest_file.py data/synthetic/sample/requests.jsonl \

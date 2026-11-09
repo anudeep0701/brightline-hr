@@ -26,7 +26,7 @@ Start with this README and the two-page [SOLUTION_DESIGN.pdf](SOLUTION_DESIGN.pd
 
 ## Run locally
 
-Requires Python 3.11+ and Node.js 22+ with npm; internet is needed to install packages. macOS/Linux commands below start at the extracted `brightline-hr/` root. Git, PostgreSQL and an OpenAI key are not needed for the local SQLite demo.
+Requires Python 3.11+ and Node.js 22+ with npm; internet is needed to install packages. Extract with `unzip FDE_Brightline_HR_Case_Study.zip -d brightline-hr`; macOS/Linux commands below start inside that directory. Git, PostgreSQL and an OpenAI key are not needed for the local SQLite demo.
 
 ```sh
 python3 -m venv .venv

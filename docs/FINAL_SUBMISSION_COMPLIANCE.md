@@ -27,14 +27,14 @@ Audit date: 2026-11-09. Scope: the current repository and focused submission ZIP
 | CS4: AI enhancement optional, plus signal, never a gate | PASS | Visible concise advisory Q&A/briefs, grounding, human control, safe fallback; core decisions never use OpenAI |
 | CS4: language/stack/scope/thresholds are candidate choices | PASS | Next.js/FastAPI/PostgreSQL documented as choices; no unsupported mandatory stack or infrastructure claim |
 | CS4: 30-45 minute panel walkthrough/demo and what-if defense | PASS | README 15-file review map; design rationale, boundary conditions, trade-offs and scope gaps; `docs/PRODUCT_WALKTHROUGH.md` |
-| Guide p1: design, README and all necessary code in one ZIP | PASS | One project folder with source/tests/configuration/dependencies, Markdown design and supported PDF; archive integrity independently checked |
+| Guide p1: design, README and all necessary code in one ZIP | PASS | Archive-root README/design alongside source/tests/configuration/dependencies; archive integrity independently checked |
 | Guide p2: design must be PDF/DOCX/PPTX; maximum 20 pages/slides | PASS | Two-page text-based, unencrypted PDF; not just Markdown, not scanned/image-only |
 | Guide pp2-3: diagrams embedded and labeled; PDF diagrams as raster pictures, not vector graphics | PASS | One embedded PNG diagram, 1,800 x 620 pixels; all boxes/arrows labeled; no standalone image entries in ZIP |
 | Guide p3: pictures >=100 px each side, <=6/document and <=8/submission | PASS | One qualifying embedded picture in the PDF; no other submitted pictures |
 | Guide p2: root README.md; first ~100 lines include built product, requirement/file map, run/tests/trade-offs/gaps | PASS | README is 96 lines and contains all these items; hosted credential-free assessment and normal production authentication clearly distinguished |
 | Guide p2: reviewer reads 15 files; list key files and omit generated/bulk data/images | PASS | README + PDF + 13 prioritized implementation/configuration files. All necessary source remains runnable; bulk generated logs, standalone screenshots, caches and build outputs excluded. Only the 8 KiB official input required by CS4 and a tiny digest manifest remain as fixtures |
 | Guide p2: ZIP under 50 MB; no .png/.svg/.drawio/.doc/.ppt attachments | PASS | Archive inspection enforces size/extension exclusions; supported design PDF contains the diagram |
-| Guide: specific archive basename/folder name | NOT APPLICABLE | No convention specified; retains `FDE_Brightline_HR_Case_Study.zip` with `brightline-hr/` root |
+| Guide: specific archive basename/folder name | NOT APPLICABLE | No basename convention specified; retains `FDE_Brightline_HR_Case_Study.zip`. Guide requires top-level README, so files are at archive root; `unzip ... -d brightline-hr` creates an enclosing extraction directory |
 | Official numeric throughput, latency SLO, scale target, cloud account, deployment link or specific tech stack | NOT APPLICABLE | Not prescribed. Thresholds, scale path, live hosting and dependencies are candidate decisions, not invented official requirements |
 | Official exact test framework, specific test count, external service prohibition, Copilot mandate or AI-assigned health | NOT APPLICABLE | None is stated in the supplied sources. Tests/security and advisory AI are delivered engineering choices |
 
